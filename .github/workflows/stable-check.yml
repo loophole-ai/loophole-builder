@@ -62,7 +62,7 @@ jobs:
       SHOULD_DEPLOY: ${{ steps.check.outputs.SHOULD_DEPLOY || env.SHOULD_DEPLOY }}
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
