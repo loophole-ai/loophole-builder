@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop">
+	<id>@@NAME@@.desktop</id>
+	<metadata_license>@@LICENSE@@</metadata_license>
+	<project_license>@@LICENSE@@</project_license>
+	<name>@@NAME_LONG@@</name>
+	<url type="homepage">https://loophole.dev</url>
+	<summary>Loophole Insiders. AI-powered code editing.</summary>
+	<description>
+		<p>Loophole Insiders is the prerelease channel of the privacy-first Loophole AI code editor.</p>
+	</description>
+	<screenshots>
+		<screenshot type="default">
+			<image>https://raw.githubusercontent.com/loophole-ai/loophole-ide/main/loophole_icons/loophole_banner_light.png</image>
+			<caption>Editing code with Loophole</caption>
+		</screenshot>
+	</screenshots>
+</component>
