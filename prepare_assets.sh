@@ -115,11 +115,32 @@ if [[ "${OS_NAME}" == "osx" ]]; then
       exit 1
     fi
     pushd "VSCode-darwin-${VSCODE_ARCH}"
-    if [[ "${SHOULD_DEPLOY:-no}" == "yes" ]]; then
-      "${CREATE_DMG_BIN}" ./*.app .
-    else
-      "${CREATE_DMG_BIN}" --no-code-sign ./*.app .
+    create_dmg_flags=(--overwrite)
+    if [[ "${SHOULD_DEPLOY:-no}" != "yes" ]]; then
+      create_dmg_flags+=(--no-code-sign)
     fi
+
+    # appdmg can race with macOS unmounting the temporary volume. Retry that
+    # known cleanup race, and overwrite any partial target left by the attempt.
+    create_dmg_attempt=1
+    create_dmg_max_attempts=3
+    create_dmg_log="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/loophole-create-dmg-${VSCODE_ARCH}.log"
+    while true; do
+      if "${CREATE_DMG_BIN}" "${create_dmg_flags[@]}" ./*.app . >"${create_dmg_log}" 2>&1; then
+        cat "${create_dmg_log}"
+        break
+      fi
+
+      cat "${create_dmg_log}" >&2
+      if [[ "${create_dmg_attempt}" -ge "${create_dmg_max_attempts}" ]] ||
+        ! grep -qF "hdiutil: detach failed" "${create_dmg_log}"; then
+        exit 1
+      fi
+
+      echo "DMG cleanup did not find the temporary volume; retrying (${create_dmg_attempt}/${create_dmg_max_attempts})"
+      sleep $((create_dmg_attempt * 2))
+      create_dmg_attempt=$((create_dmg_attempt + 1))
+    done
     # Keep the release asset name aligned with the IDE updater and versions feed.
     shopt -s nullglob
     dmg_files=( *.dmg )
