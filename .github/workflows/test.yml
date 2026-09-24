@@ -1,0 +1,112 @@
+# Build-only validation: runs the complete platform matrix without creating a release
+# or updating loophole-ai/versions.
+name: Loophole Builder Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      checkout_pr:
+        type: string
+        description: Optional builder pull request number to merge before testing
+      ide_commit:
+        type: string
+        description: Optional Loophole IDE commit to test
+      ide_branch:
+        type: string
+        description: Optional Loophole IDE branch to test instead of the remote default
+
+concurrency:
+  group: test-release-${{ github.repository }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: write
+
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+  APP_NAME: Loophole
+  ASSETS_REPOSITORY: loophole-ai/loophole-ide
+  BINARY_NAME: loophole
+  GH_REPO_PATH: loophole-ai/loophole-ide
+  ORG_NAME: loophole-ai
+  VERSIONS_REPOSITORY: loophole-ai/versions
+  VSCODE_QUALITY: stable
+
+jobs:
+  check:
+    uses: ./.github/workflows/stable-check.yml
+    with:
+      BUILD_ONLY: 'yes'
+      CHECKOUT_PR: ${{ github.event.inputs.checkout_pr }}
+      IDE_COMMIT: ${{ github.event.inputs.ide_commit }}
+      IDE_BRANCH: ${{ github.event.inputs.ide_branch }}
+    secrets: inherit
+
+  compile:
+    needs: [check]
+    uses: ./.github/workflows/stable-compile.yml
+    with:
+      MS_COMMIT: ${{ needs.check.outputs.MS_COMMIT }}
+      MS_TAG: ${{ needs.check.outputs.MS_TAG }}
+      RELEASE_VERSION: ${{ needs.check.outputs.RELEASE_VERSION }}
+      RELEASE_TITLE: ${{ needs.check.outputs.RELEASE_TITLE }}
+      LOOPHOLE_VERSION: ${{ needs.check.outputs.LOOPHOLE_VERSION }}
+      SHOULD_BUILD: ${{ needs.check.outputs.SHOULD_BUILD }}
+      SHOULD_DEPLOY: ${{ needs.check.outputs.SHOULD_DEPLOY }}
+    secrets: inherit
+
+  build_macos:
+    needs: [check]
+    uses: ./.github/workflows/stable-macos.yml
+    with:
+      MS_COMMIT: ${{ needs.check.outputs.MS_COMMIT }}
+      MS_TAG: ${{ needs.check.outputs.MS_TAG }}
+      RELEASE_VERSION: ${{ needs.check.outputs.RELEASE_VERSION }}
+      RELEASE_TITLE: ${{ needs.check.outputs.RELEASE_TITLE }}
+      LOOPHOLE_VERSION: ${{ needs.check.outputs.LOOPHOLE_VERSION }}
+      SHOULD_BUILD: ${{ needs.check.outputs.SHOULD_BUILD }}
+      SHOULD_DEPLOY: ${{ needs.check.outputs.SHOULD_DEPLOY }}
+    secrets: inherit
+
+  build_linux:
+    needs: [check, compile]
+    uses: ./.github/workflows/stable-linux.yml
+    with:
+      BUILD_SOURCEVERSION: ${{ needs.compile.outputs.BUILD_SOURCEVERSION }}
+      MS_COMMIT: ${{ needs.check.outputs.MS_COMMIT }}
+      MS_TAG: ${{ needs.check.outputs.MS_TAG }}
+      RELEASE_VERSION: ${{ needs.check.outputs.RELEASE_VERSION }}
+      RELEASE_TITLE: ${{ needs.check.outputs.RELEASE_TITLE }}
+      LOOPHOLE_VERSION: ${{ needs.check.outputs.LOOPHOLE_VERSION }}
+      SHOULD_BUILD: ${{ needs.check.outputs.SHOULD_BUILD }}
+      SHOULD_DEPLOY: ${{ needs.check.outputs.SHOULD_DEPLOY }}
+    secrets: inherit
+
+  build_windows:
+    needs: [check, compile]
+    uses: ./.github/workflows/stable-windows.yml
+    with:
+      BUILD_SOURCEVERSION: ${{ needs.compile.outputs.BUILD_SOURCEVERSION }}
+      MS_COMMIT: ${{ needs.check.outputs.MS_COMMIT }}
+      MS_TAG: ${{ needs.check.outputs.MS_TAG }}
+      RELEASE_VERSION: ${{ needs.check.outputs.RELEASE_VERSION }}
+      RELEASE_TITLE: ${{ needs.check.outputs.RELEASE_TITLE }}
+      LOOPHOLE_VERSION: ${{ needs.check.outputs.LOOPHOLE_VERSION }}
+      SHOULD_BUILD: ${{ needs.check.outputs.SHOULD_BUILD }}
+      SHOULD_DEPLOY: ${{ needs.check.outputs.SHOULD_DEPLOY }}
+    secrets: inherit
+
+  reh_linux:
+    needs: [check, compile]
+    uses: ./.github/workflows/stable-reh-linux.yml
+    with:
+      BUILD_SOURCEVERSION: ${{ needs.compile.outputs.BUILD_SOURCEVERSION }}
+      MS_COMMIT: ${{ needs.check.outputs.MS_COMMIT }}
+      MS_TAG: ${{ needs.check.outputs.MS_TAG }}
+      RELEASE_VERSION: ${{ needs.check.outputs.RELEASE_VERSION }}
+      RELEASE_TITLE: ${{ needs.check.outputs.RELEASE_TITLE }}
+      LOOPHOLE_VERSION: ${{ needs.check.outputs.LOOPHOLE_VERSION }}
+      SHOULD_BUILD: ${{ needs.check.outputs.SHOULD_BUILD }}
+      SHOULD_DEPLOY: ${{ needs.check.outputs.SHOULD_DEPLOY }}
+    secrets: inherit
