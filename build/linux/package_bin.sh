@@ -1,0 +1,156 @@
+#!/usr/bin/env bash
+# shellcheck disable=SC1091
+
+set -ex
+
+if [[ "${CI_BUILD}" == "no" ]]; then
+  exit 1
+fi
+
+LOOPHOLE_BUILDER_ROOT="${LOOPHOLE_BUILDER_ROOT:-${GITHUB_WORKSPACE:-}}"
+if [[ -z "${LOOPHOLE_BUILDER_ROOT}" ]]; then
+  LOOPHOLE_BUILDER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+fi
+export LOOPHOLE_BUILDER_ROOT
+# shellcheck source=scripts/lib/utils.sh
+. "${LOOPHOLE_BUILDER_ROOT}/scripts/lib/utils.sh"
+
+tar -xzf ./vscode.tar.gz
+
+# Only chown when running as root (container builds); skip on GitHub-hosted runners.
+if [[ "${EUID:-$(id -u)}" == "0" ]]; then
+  chown -R root:root vscode
+fi
+
+cd vscode || { echo "'vscode' dir not found"; exit 1; }
+
+# shellcheck source=scripts/lib/ci_lib.sh
+source "${LOOPHOLE_BUILDER_ROOT}/scripts/lib/ci_lib.sh"
+ci_apply_loophole_version
+
+export VSCODE_PLATFORM='linux'
+export VSCODE_SKIP_NODE_VERSION_CHECK=1
+# VSCODE_SYSROOT_PREFIX intentionally unset: install-sysroot.ts defaults to
+# '-glibc-2.28-gcc-10.5.0' which matches build/checksums/vscode-sysroot.txt (1.121.0+).
+# The old '-glibc-2.28' suffix no longer has a checksum entry.
+
+if [[ "${VSCODE_ARCH}" == "arm64" || "${VSCODE_ARCH}" == "armhf" ]]; then
+  export VSCODE_SKIP_SYSROOT=1
+  export VSCODE_SKIP_SETUPENV=1
+  export USE_GNUPP2A=1
+elif [[ "${VSCODE_ARCH}" == "ppc64le" ]]; then
+  export VSCODE_SYSROOT_REPOSITORY='VSCodium/vscode-linux-build-agent'
+  export VSCODE_SYSROOT_VERSION='20240129-253798'
+  export USE_GNUPP2A=1
+  export ELECTRON_SKIP_BINARY_DOWNLOAD=1
+  export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+  export VSCODE_SKIP_SETUPENV=1
+  export VSCODE_ELECTRON_REPOSITORY='lex-ibm/electron-ppc64le-build-scripts'
+elif [[ "${VSCODE_ARCH}" == "riscv64" ]]; then
+  export VSCODE_ELECTRON_REPOSITORY='riscv-forks/electron-riscv-releases'
+  export ELECTRON_SKIP_BINARY_DOWNLOAD=1
+  export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+  export VSCODE_SKIP_SETUPENV=1
+elif [[ "${VSCODE_ARCH}" == "loong64" ]]; then
+  export VSCODE_ELECTRON_REPOSITORY='darkyzhou/electron-loong64'
+  export ELECTRON_SKIP_BINARY_DOWNLOAD=1
+  export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+  export VSCODE_SKIP_SETUPENV=1
+fi
+
+if [[ -f "../build/linux/${VSCODE_ARCH}/electron.sh" ]]; then
+  # add newline at the end of the file
+  echo "" >> build/checksums/electron.txt
+
+  if [[ -f "../build/linux/${VSCODE_ARCH}/electron.sha256sums" ]]; then
+    cat "../build/linux/${VSCODE_ARCH}/electron.sha256sums" >> build/checksums/electron.txt
+  fi
+
+  # shellcheck disable=SC1090
+  source "../build/linux/${VSCODE_ARCH}/electron.sh"
+
+  TARGET=$( npm config get target )
+
+  # Only fails at different major versions
+  if [[ "${ELECTRON_VERSION%%.*}" != "${TARGET%%.*}" ]]; then
+    # Fail the pipeline if electron target doesn't match what is used.
+    echo "Electron ${VSCODE_ARCH} binary version doesn't match target electron version!"
+    echo "Releases available at: https://github.com/${VSCODE_ELECTRON_REPOSITORY}/releases"
+    exit 1
+  fi
+
+  if [[ "${ELECTRON_VERSION}" != "${TARGET}" ]]; then
+    # Force version
+    replace "s|target=\"${TARGET}\"|target=\"${ELECTRON_VERSION}\"|" .npmrc
+  fi
+fi
+
+if [[ -d "../patches/linux/client/" ]]; then
+  for file in "../patches/linux/client/"*.patch; do
+    if [[ -f "${file}" ]]; then
+      apply_patch "${file}"
+    fi
+  done
+fi
+
+if [[ -n "${USE_GNUPP2A}" ]]; then
+  INCLUDES=$(cat <<EOF
+{
+  "target_defaults": {
+    "conditions": [
+      ["OS=='linux'", {
+        'cflags_cc!': [ '-std=gnu++20' ],
+        'cflags_cc': [ '-std=gnu++2a' ],
+      }]
+    ]
+  }
+}
+EOF
+)
+
+  if [ ! -d "$HOME/.gyp" ]; then
+    mkdir -p "$HOME/.gyp"
+  fi
+
+  echo "${INCLUDES}" > "$HOME/.gyp/include.gypi"
+fi
+
+for i in {1..5}; do # try 5 times
+  npm ci --prefix build && break
+  if [[ $i == 3 ]]; then
+    echo "Npm install failed too many times" >&2
+    exit 1
+  fi
+  echo "Npm install failed $i, trying again..."
+done
+
+if [[ -z "${VSCODE_SKIP_SETUPENV}" ]]; then
+  if [[ -n "${VSCODE_SKIP_SYSROOT}" ]]; then
+    source ./build/azure-pipelines/linux/setup-env.sh --skip-sysroot
+  else
+    source ./build/azure-pipelines/linux/setup-env.sh
+  fi
+fi
+
+for i in {1..5}; do # try 5 times
+  npm ci && break
+  if [[ $i -eq 3 ]]; then
+    echo "Npm install failed too many times" >&2
+    exit 1
+  fi
+  echo "Npm install failed $i, trying again..."
+done
+
+node --experimental-strip-types build/azure-pipelines/distro/mixin-npm.ts
+
+npm run gulp "vscode-linux-${VSCODE_ARCH}-min-ci"
+
+if [[ -f "../build/linux/${VSCODE_ARCH}/ripgrep.sh" ]]; then
+  bash "../build/linux/${VSCODE_ARCH}/ripgrep.sh" "../VSCode-linux-${VSCODE_ARCH}/resources/app/node_modules"
+fi
+
+find "../VSCode-linux-${VSCODE_ARCH}" -print0 | xargs -0 touch -c
+
+. "${LOOPHOLE_BUILDER_ROOT}/scripts/build_cli.sh"
+
+cd ..
