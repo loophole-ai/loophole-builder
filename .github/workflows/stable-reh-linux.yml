@@ -130,6 +130,7 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: loophole-reh-linux-${{ matrix.vscode_arch }}
-          path: assets/
+          path: assets/*
+          if-no-files-found: error
           retention-days: 3
         if: env.DISABLED != 'yes' && env.SHOULD_BUILD == 'yes'
