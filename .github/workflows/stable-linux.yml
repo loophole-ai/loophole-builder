@@ -1,0 +1,160 @@
+name: stable-linux
+
+on:
+  workflow_call:
+    inputs:
+      BUILD_SOURCEVERSION:
+        required: true
+        type: string
+      MS_COMMIT:
+        required: true
+        type: string
+      MS_TAG:
+        required: true
+        type: string
+      RELEASE_VERSION:
+        required: true
+        type: string
+      RELEASE_TITLE:
+        required: true
+        type: string
+      LOOPHOLE_VERSION:
+        required: true
+        type: string
+      SHOULD_BUILD:
+        required: true
+        type: string
+      SHOULD_DEPLOY:
+        required: true
+        type: string
+
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+  APP_NAME: Loophole
+  ASSETS_REPOSITORY: loophole-ai/loophole-ide
+  BINARY_NAME: loophole
+  GH_REPO_PATH: loophole-ai/loophole-ide
+  ORG_NAME: loophole-ai
+  VERSIONS_REPOSITORY: loophole-ai/versions
+  VSCODE_QUALITY: stable
+
+jobs:
+  build_linux:
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - slug: X64
+            vscode_arch: x64
+            npm_arch: x64
+            runner: ubuntu-24.04
+          - slug: ARM64
+            vscode_arch: arm64
+            npm_arch: arm64
+            runner: ubuntu-24.04-arm
+    env:
+      BUILD_SOURCEVERSION: ${{ inputs.BUILD_SOURCEVERSION }}
+      DISABLED: ${{ vars[format('DISABLE_STABLE_LINUX_APP_{0}', matrix.slug)] }}
+      MS_COMMIT: ${{ inputs.MS_COMMIT }}
+      MS_TAG: ${{ inputs.MS_TAG }}
+      RELEASE_VERSION: ${{ inputs.RELEASE_VERSION }}
+      RELEASE_TITLE: ${{ inputs.RELEASE_TITLE }}
+      LOOPHOLE_VERSION: ${{ inputs.LOOPHOLE_VERSION }}
+      SHOULD_BUILD: ${{ inputs.SHOULD_BUILD }}
+      SHOULD_DEPLOY: ${{ inputs.SHOULD_DEPLOY }}
+      VSCODE_ARCH: ${{ matrix.vscode_arch }}
+      OS_NAME: linux
+      LOOPHOLE_BUILDER_ROOT: ${{ github.workspace }}
+      SHOULD_BUILD_DEB: 'no'
+      SHOULD_BUILD_RPM: 'no'
+      SHOULD_BUILD_APPIMAGE: 'no'
+
+    steps:
+      - uses: actions/checkout@v6
+        if: env.DISABLED != 'yes' && env.SHOULD_BUILD == 'yes'
+
+      - name: Checkout builder PR
+        env:
+          PULL_REQUEST_ID: ${{ github.event.inputs.checkout_pr }}
+        run: ./ci_repo.sh pr
+        if: env.DISABLED != 'yes'
+
+      - name: Platform CI setup
+        env:
+          CHECK_REH: 'no'
+          DISABLE_APPIMAGE: ${{ vars.DISABLE_STABLE_APPIMAGE }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./ci_platform.sh
+        if: env.DISABLED != 'yes' && env.SHOULD_BUILD == 'yes'
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24.18.0'
+        if: env.DISABLED != 'yes' && env.SHOULD_BUILD == 'yes'
+
+      - name: Pin npm version
+        run: npm install -g "npm@<11.2.0"
+        if: env.DISABLED != 'yes' && env.SHOULD_BUILD == 'yes'
+
+      - name: Install dependencies
+        run: ./build/linux/deps.sh
+        if: env.DISABLED != 'yes' && env.SHOULD_BUILD == 'yes'
+
+      - name: Install missing dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y libnss3 libpango-1.0-0 libudev1 libx11-6 libxcb1 libxcomposite1 libxdamage1 libxext6 libxfixes3 libxkbcommon0 libxkbfile1 libxrandr2 xdg-utils zlib1g
+        if: env.DISABLED != 'yes' && env.SHOULD_BUILD == 'yes'
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1.16.0
+        if: env.DISABLED != 'yes' && env.SHOULD_BUILD == 'yes'
+
+      - name: Download vscode artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: vscode
+        if: env.DISABLED != 'yes' && env.SHOULD_BUILD == 'yes'
+
+      - name: Build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          npm_config_arch: ${{ matrix.npm_arch }}
+        run: ./build/linux/package_bin.sh
+        if: env.DISABLED != 'yes' && env.SHOULD_BUILD == 'yes'
+
+      - name: Prepare assets
+        env:
+          SHOULD_BUILD_REH: 'no'
+          SHOULD_BUILD_REH_WEB: 'no'
+          # .deb/.rpm: dpkg-shlibdeps fails on sharp (CI = tar.gz only)
+          SHOULD_BUILD_DEB: 'no'
+          SHOULD_BUILD_RPM: 'no'
+          SHOULD_BUILD_APPIMAGE: 'no'
+        run: ./prepare_assets.sh
+        if: env.DISABLED != 'yes' && env.SHOULD_BUILD == 'yes'
+
+      - name: Upload to GitHub release
+        env:
+          STRONGER_GITHUB_TOKEN: ${{ secrets.STRONGER_GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.STRONGER_GITHUB_TOKEN != '' && secrets.STRONGER_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_USERNAME: ${{ github.repository_owner }}
+        run: ./release.sh
+        if: env.DISABLED != 'yes' && env.SHOULD_BUILD == 'yes' && env.SHOULD_DEPLOY == 'yes'
+
+      - name: Update Loophole versions repository
+        env:
+          FORCE_UPDATE: ${{ github.event.inputs.force_version }}
+          GITHUB_TOKEN: ${{ secrets.STRONGER_GITHUB_TOKEN }}
+          GITHUB_USERNAME: ${{ github.repository_owner }}
+        run: ./update_version.sh
+        if: env.DISABLED != 'yes' && env.SHOULD_BUILD == 'yes' && env.SHOULD_DEPLOY == 'yes'
+
+      - name: Upload assets
+        uses: actions/upload-artifact@v6
+        with:
+          name: loophole-linux-${{ matrix.vscode_arch }}
+          path: assets/
+          retention-days: 3
+        if: env.DISABLED != 'yes' && env.SHOULD_BUILD == 'yes'

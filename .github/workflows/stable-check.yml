@@ -1,0 +1,64 @@
+name: stable-check
+
+on:
+  workflow_call:
+    outputs:
+      MS_COMMIT:
+        value: ${{ jobs.check.outputs.MS_COMMIT }}
+      MS_TAG:
+        value: ${{ jobs.check.outputs.MS_TAG }}
+      RELEASE_VERSION:
+        value: ${{ jobs.check.outputs.RELEASE_VERSION }}
+      RELEASE_TITLE:
+        value: ${{ jobs.check.outputs.RELEASE_TITLE }}
+      LOOPHOLE_VERSION:
+        value: ${{ jobs.check.outputs.LOOPHOLE_VERSION }}
+      SHOULD_BUILD:
+        value: ${{ jobs.check.outputs.SHOULD_BUILD }}
+      SHOULD_DEPLOY:
+        value: ${{ jobs.check.outputs.SHOULD_DEPLOY }}
+
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+  APP_NAME: Loophole
+  ASSETS_REPOSITORY: loophole-ai/loophole-ide
+  BINARY_NAME: loophole
+  GH_REPO_PATH: loophole-ai/loophole-ide
+  ORG_NAME: loophole-ai
+  VERSIONS_REPOSITORY: loophole-ai/versions
+  VSCODE_QUALITY: stable
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      MS_COMMIT: ${{ steps.check.outputs.MS_COMMIT || env.MS_COMMIT }}
+      MS_TAG: ${{ steps.check.outputs.MS_TAG || env.MS_TAG }}
+      RELEASE_VERSION: ${{ steps.check.outputs.RELEASE_VERSION || env.RELEASE_VERSION }}
+      RELEASE_TITLE: ${{ env.RELEASE_TITLE }}
+      LOOPHOLE_VERSION: ${{ steps.check.outputs.LOOPHOLE_VERSION || env.LOOPHOLE_VERSION }}
+      SHOULD_BUILD: ${{ steps.check.outputs.SHOULD_BUILD || env.SHOULD_BUILD }}
+      SHOULD_DEPLOY: ${{ steps.check.outputs.SHOULD_DEPLOY || env.SHOULD_DEPLOY }}
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Checkout builder PR and clone Loophole-ide
+        env:
+          PULL_REQUEST_ID: ${{ github.event.inputs.checkout_pr }}
+          LOOPHOLE_IDE_COMMIT: ${{ github.event.inputs.ide_commit }}
+          LOOPHOLE_IDE_BRANCH: ${{ github.event.inputs.ide_branch }}
+        run: ./ci_repo.sh
+
+      - name: CI check (versions, release, flags)
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          STRONGER_GITHUB_TOKEN: ${{ secrets.STRONGER_GITHUB_TOKEN }}
+          # increment_minor implies a bump, even if increment_version was left unchecked
+          SKIP_VERSION_BUMP: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.increment_version == 'false' && github.event.inputs.increment_minor != 'true' && 'yes' || '' }}
+          INCREMENT_MINOR: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.increment_minor == 'true' && 'yes' || '' }}
+          CHECK_ALL: 'yes'
+        run: ./ci_check.sh

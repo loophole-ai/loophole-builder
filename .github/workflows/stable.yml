@@ -1,0 +1,131 @@
+# Stable CI orchestrator: check → compile (vscode.tar.gz) → parallel builds.
+# Detailed jobs in stable-*.yml (workflow_call). Single compile per execution.
+name: Loophole Builder CI
+
+# Avoids two runs that bump 1.5.0 then 1.6.0 and distribute assets across two releases.
+concurrency:
+  group: stable-release-${{ github.repository }}
+  cancel-in-progress: false
+
+on:
+  workflow_dispatch:
+    inputs:
+      force_version:
+        type: boolean
+        description: Regenerate update metadata even when the release version is unchanged
+      increment_version:
+        type: boolean
+        description: Increment the Loophole patch version before release
+        default: true
+      increment_minor:
+        type: boolean
+        description: Increment the Loophole minor version instead of the patch version. This also enables increment_version.
+        default: false
+      checkout_pr:
+        type: string
+        description: Optional builder pull request number to merge before building
+      ide_commit:
+        type: string
+        description: Optional Loophole IDE commit to build
+      ide_branch:
+        type: string
+        description: Optional Loophole IDE branch to build instead of the remote default
+  repository_dispatch:
+    types: [stable]
+  push:
+    branches: [main, master]
+    paths-ignore:
+      - '**/*.md'
+      - 'upstream/*.json'
+  pull_request:
+    branches: [main, master]
+    paths-ignore:
+      - '**/*.md'
+
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+  APP_NAME: Loophole
+  ASSETS_REPOSITORY: loophole-ai/loophole-ide
+  BINARY_NAME: loophole
+  GH_REPO_PATH: loophole-ai/loophole-ide
+  ORG_NAME: loophole-ai
+  VERSIONS_REPOSITORY: loophole-ai/versions
+  VSCODE_QUALITY: stable
+
+# Required for reusable workflows that publish to release (gh release upload).
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  check:
+    uses: ./.github/workflows/stable-check.yml
+    secrets: inherit
+
+  compile:
+    needs: [check]
+    uses: ./.github/workflows/stable-compile.yml
+    with:
+      MS_COMMIT: ${{ needs.check.outputs.MS_COMMIT }}
+      MS_TAG: ${{ needs.check.outputs.MS_TAG }}
+      RELEASE_VERSION: ${{ needs.check.outputs.RELEASE_VERSION }}
+      RELEASE_TITLE: ${{ needs.check.outputs.RELEASE_TITLE }}
+      LOOPHOLE_VERSION: ${{ needs.check.outputs.LOOPHOLE_VERSION }}
+      SHOULD_BUILD: ${{ needs.check.outputs.SHOULD_BUILD }}
+      SHOULD_DEPLOY: ${{ needs.check.outputs.SHOULD_DEPLOY }}
+    secrets: inherit
+
+  build_macos:
+    needs: [check]
+    uses: ./.github/workflows/stable-macos.yml
+    with:
+      MS_COMMIT: ${{ needs.check.outputs.MS_COMMIT }}
+      MS_TAG: ${{ needs.check.outputs.MS_TAG }}
+      RELEASE_VERSION: ${{ needs.check.outputs.RELEASE_VERSION }}
+      RELEASE_TITLE: ${{ needs.check.outputs.RELEASE_TITLE }}
+      LOOPHOLE_VERSION: ${{ needs.check.outputs.LOOPHOLE_VERSION }}
+      SHOULD_BUILD: ${{ needs.check.outputs.SHOULD_BUILD }}
+      SHOULD_DEPLOY: ${{ needs.check.outputs.SHOULD_DEPLOY }}
+    secrets: inherit
+
+  build_linux:
+    needs: [check, compile]
+    uses: ./.github/workflows/stable-linux.yml
+    with:
+      BUILD_SOURCEVERSION: ${{ needs.compile.outputs.BUILD_SOURCEVERSION }}
+      MS_COMMIT: ${{ needs.check.outputs.MS_COMMIT }}
+      MS_TAG: ${{ needs.check.outputs.MS_TAG }}
+      RELEASE_VERSION: ${{ needs.check.outputs.RELEASE_VERSION }}
+      RELEASE_TITLE: ${{ needs.check.outputs.RELEASE_TITLE }}
+      LOOPHOLE_VERSION: ${{ needs.check.outputs.LOOPHOLE_VERSION }}
+      SHOULD_BUILD: ${{ needs.check.outputs.SHOULD_BUILD }}
+      SHOULD_DEPLOY: ${{ needs.check.outputs.SHOULD_DEPLOY }}
+    secrets: inherit
+
+  build_windows:
+    needs: [check, compile]
+    uses: ./.github/workflows/stable-windows.yml
+    with:
+      BUILD_SOURCEVERSION: ${{ needs.compile.outputs.BUILD_SOURCEVERSION }}
+      MS_COMMIT: ${{ needs.check.outputs.MS_COMMIT }}
+      MS_TAG: ${{ needs.check.outputs.MS_TAG }}
+      RELEASE_VERSION: ${{ needs.check.outputs.RELEASE_VERSION }}
+      RELEASE_TITLE: ${{ needs.check.outputs.RELEASE_TITLE }}
+      LOOPHOLE_VERSION: ${{ needs.check.outputs.LOOPHOLE_VERSION }}
+      SHOULD_BUILD: ${{ needs.check.outputs.SHOULD_BUILD }}
+      SHOULD_DEPLOY: ${{ needs.check.outputs.SHOULD_DEPLOY }}
+    secrets: inherit
+
+  reh_linux:
+    needs: [check, compile]
+    uses: ./.github/workflows/stable-reh-linux.yml
+    with:
+      BUILD_SOURCEVERSION: ${{ needs.compile.outputs.BUILD_SOURCEVERSION }}
+      MS_COMMIT: ${{ needs.check.outputs.MS_COMMIT }}
+      MS_TAG: ${{ needs.check.outputs.MS_TAG }}
+      RELEASE_VERSION: ${{ needs.check.outputs.RELEASE_VERSION }}
+      RELEASE_TITLE: ${{ needs.check.outputs.RELEASE_TITLE }}
+      LOOPHOLE_VERSION: ${{ needs.check.outputs.LOOPHOLE_VERSION }}
+      SHOULD_BUILD: ${{ needs.check.outputs.SHOULD_BUILD }}
+      SHOULD_DEPLOY: ${{ needs.check.outputs.SHOULD_DEPLOY }}
+    secrets: inherit
