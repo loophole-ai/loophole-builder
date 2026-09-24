@@ -27,11 +27,12 @@ else
 fi
 
 TUNNEL_APPLICATION_NAME="$( node -p "require(\"../product.json\").tunnelApplicationName" )"
-NAME_SHORT="$( node -p "require(\"../product.json\").nameShort" )"
 
 npm pack @vscode/openssl-prebuilt@0.0.11
 mkdir openssl
 tar -xvzf vscode-openssl-prebuilt-0.0.11.tgz --strip-components=1 --directory=openssl
+# Use the prebuilt archives above instead of invoking openssl-src (and Perl).
+export OPENSSL_NO_VENDOR=1
 
 if [[ "${OS_NAME}" == "osx" ]]; then
   if [[ "${VSCODE_ARCH}" == "arm64" ]]; then
@@ -48,7 +49,7 @@ if [[ "${OS_NAME}" == "osx" ]]; then
   export RUSTFLAGS="-A unused-imports"
   cargo build --release --target "${VSCODE_CLI_TARGET}" --bin=code
 
-  cp "target/${VSCODE_CLI_TARGET}/release/code" "../../VSCode-darwin-${VSCODE_ARCH}/${NAME_SHORT}.app/Contents/Resources/app/bin/${TUNNEL_APPLICATION_NAME}"
+  cp "target/${VSCODE_CLI_TARGET}/release/code" "../../VSCode-darwin-${VSCODE_ARCH}/${VSCODE_CLI_NAME_LONG}.app/Contents/Resources/app/bin/${TUNNEL_APPLICATION_NAME}"
 elif [[ "${OS_NAME}" == "windows" ]]; then
   # Git Bash places usr\bin very early in PATH: rustc then invokes Unix "link.exe",
   # not the MSVC linker (error "/usr/bin/link: extra operand").
