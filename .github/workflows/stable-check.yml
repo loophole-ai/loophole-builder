@@ -2,6 +2,27 @@ name: stable-check
 
 on:
   workflow_call:
+    inputs:
+      BUILD_ONLY:
+        description: Run the check and build jobs without creating a release
+        required: false
+        default: 'no'
+        type: string
+      CHECKOUT_PR:
+        description: Optional builder pull request number to merge before checking
+        required: false
+        default: ''
+        type: string
+      IDE_COMMIT:
+        description: Optional Loophole IDE commit to check
+        required: false
+        default: ''
+        type: string
+      IDE_BRANCH:
+        description: Optional Loophole IDE branch to check
+        required: false
+        default: ''
+        type: string
     outputs:
       MS_COMMIT:
         value: ${{ jobs.check.outputs.MS_COMMIT }}
@@ -47,9 +68,9 @@ jobs:
 
       - name: Checkout builder PR and clone Loophole-ide
         env:
-          PULL_REQUEST_ID: ${{ github.event.inputs.checkout_pr }}
-          LOOPHOLE_IDE_COMMIT: ${{ github.event.inputs.ide_commit }}
-          LOOPHOLE_IDE_BRANCH: ${{ github.event.inputs.ide_branch }}
+          PULL_REQUEST_ID: ${{ inputs.CHECKOUT_PR || github.event.inputs.checkout_pr }}
+          LOOPHOLE_IDE_COMMIT: ${{ inputs.IDE_COMMIT || github.event.inputs.ide_commit }}
+          LOOPHOLE_IDE_BRANCH: ${{ inputs.IDE_BRANCH || github.event.inputs.ide_branch }}
         run: ./ci_repo.sh
 
       - name: CI check (versions, release, flags)
@@ -57,6 +78,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           STRONGER_GITHUB_TOKEN: ${{ secrets.STRONGER_GITHUB_TOKEN }}
+          BUILD_ONLY: ${{ inputs.BUILD_ONLY }}
           # increment_minor implies a bump, even if increment_version was left unchecked
           SKIP_VERSION_BUMP: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.increment_version == 'false' && github.event.inputs.increment_minor != 'true' && 'yes' || '' }}
           INCREMENT_MINOR: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.increment_minor == 'true' && 'yes' || '' }}

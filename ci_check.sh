@@ -34,6 +34,7 @@ if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
     echo "LOOPHOLE_VERSION=${LOOPHOLE_VERSION}"
     echo "SHOULD_BUILD=${SHOULD_BUILD}"
     echo "SHOULD_DEPLOY=${SHOULD_DEPLOY}"
+    echo "BUILD_ONLY=${BUILD_ONLY:-no}"
   } >> "${GITHUB_OUTPUT}"
 fi
 

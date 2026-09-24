@@ -27,6 +27,22 @@ ci_git_safe_directory() {
 ci_check_cron_or_pr() {
   export INCREMENT_VERSION="${INCREMENT_VERSION:-no}"
 
+  if [[ "${BUILD_ONLY:-no}" == "yes" ]]; then
+    echo "Build-only test mode: deployment and version changes are disabled"
+    export SHOULD_BUILD="yes"
+    export SHOULD_DEPLOY="no"
+    export INCREMENT_VERSION="no"
+    export GITHUB_BRANCH="${GITHUB_BRANCH:-${GITHUB_REF_NAME:-}}"
+
+    ci_write_github_env \
+      "GITHUB_BRANCH=${GITHUB_BRANCH}" \
+      "SHOULD_BUILD=${SHOULD_BUILD}" \
+      "SHOULD_DEPLOY=${SHOULD_DEPLOY}" \
+      "VSCODE_QUALITY=${VSCODE_QUALITY:-stable}" \
+      "INCREMENT_VERSION=${INCREMENT_VERSION}"
+    return 0
+  fi
+
   if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
     echo "It's a PR"
     export SHOULD_BUILD="yes"
