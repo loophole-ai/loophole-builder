@@ -1,0 +1,28 @@
+diff --git a/build/gulpfile.reh.ts b/build/gulpfile.reh.ts
+--- a/build/gulpfile.reh.ts
++++ b/build/gulpfile.reh.ts
+@@ -327,7 +327,13 @@ function packageTask(type: RehType, platform: string, arch: string, sourceFolde
+ let productJsonContents = '';
+ const productJsonStream = gulp.src(['product.json'], { base: '.' })
+-	.pipe(jsonEditor({ commit, date: readISODate(sourceFolderName), version }))
++	.pipe(jsonEditor({
++		commit,
++		date: readISODate(sourceFolderName),
++		version,
++		serverDownloadUrlTemplate: 'https://github.com/!!GH_REPO_PATH!!/releases/download/!!RELEASE_VERSION!!/!!APP_NAME_LC!!-reh-${os}-${arch}-!!RELEASE_VERSION!!.tar.gz'
++	}))
+ 	.pipe(es.through(function (file) {
+diff --git a/build/gulpfile.vscode.ts b/build/gulpfile.vscode.ts
+--- a/build/gulpfile.vscode.ts
++++ b/build/gulpfile.vscode.ts
+@@ -302,6 +302,7 @@ function packageTask(platform: string, arch: string, sourceFolderName: string,
+ const productJsonStream = gulp.src(['product.json'], { base: '.' })
+ 	.pipe(jsonEditor((json: Record) => {
+ 		json.commit = commit;
+ 		json.date = readISODate(out);
+ 		json.checksums = checksums;
+ 		json.version = version;
++		json.serverDownloadUrlTemplate = 'https://github.com/!!GH_REPO_PATH!!/releases/download/!!RELEASE_VERSION!!/!!APP_NAME_LC!!-reh-${os}-${arch}-!!RELEASE_VERSION!!.tar.gz';
+ 		return json;
+ 	}))
+ 	.pipe(es.through(function (file) {

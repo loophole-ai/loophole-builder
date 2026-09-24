@@ -1,0 +1,23 @@
+diff --git a/build/gulpfile.vscode.linux.js b/build/gulpfile.vscode.linux.js
+--- a/build/gulpfile.vscode.linux.js
++++ b/build/gulpfile.vscode.linux.js
+@@ -194,12 +194,18 @@ function prepareRpmPackage(arch) {
+ 
+ 		const code = gulp.src(binaryDir + '/**/*', { base: binaryDir })
+ 			.pipe(rename(function (p) { p.dirname = 'BUILD/usr/share/' + product.applicationName + '/' + p.dirname; }));
++
++		const packageVersion = packageJson.version;
++		const versionSep = packageVersion.indexOf('-');
++		const rpmVersion = versionSep === -1 ? packageVersion : packageVersion.slice(0, versionSep);
++		const rpmRelease = versionSep === -1 ? String(Math.floor(Date.now() / 1000)) : packageVersion.slice(versionSep + 1).replace(/-/g, '_');
+ 
+ 		const spec = gulp.src('resources/linux/rpm/code.spec.template', { base: '.' })
+ 			.pipe(replace('@@NAME@@', product.applicationName))
+ 			.pipe(replace('@@NAME_LONG@@', product.nameLong))
+ 			.pipe(replace('@@ICON@@', product.linuxIconName))
+-			.pipe(replace('@@VERSION@@', packageJson.version))
++			.pipe(replace('@@VERSION@@', rpmVersion))
++			.pipe(replace('@@RELEASE@@', rpmRelease))
+ 			.pipe(replace('@@ARCHITECTURE@@', rpmArch))
+ 			.pipe(replace('@@LICENSE@@', product.licenseName))
+ 			.pipe(replace('@@QUALITY@@', product.quality || '@@QUALITY@@'))
