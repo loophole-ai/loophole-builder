@@ -101,7 +101,7 @@ jobs:
         if: env.SHOULD_BUILD == 'yes'
 
       - name: Install native build and icon dependencies
-        run: sudo apt-get update -y && sudo apt-get install -y libkrb5-dev imagemagick icoutils
+        run: sudo apt-get update -y && sudo apt-get install -y libkrb5-dev imagemagick icoutils icnsutils
         if: env.SHOULD_BUILD == 'yes'
 
       - name: Build

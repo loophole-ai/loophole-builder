@@ -28,7 +28,6 @@ require_program() {
 }
 
 require_program convert
-require_program png2icns
 require_program base64
 
 LOGO="${BUILDER_ROOT}/icons/${VSCODE_QUALITY}/loophole_logo.png"
@@ -45,20 +44,54 @@ done
 build_darwin_icons() {
   local darwin_dir="${VSCODE_DIR}/resources/darwin"
   local source_dir="${VSCODE_DIR}/resources/darwin"
-  local tmp_1024 tmp_512 tmp_256 tmp_128 file name
+  local tmp_16 tmp_32 tmp_64 tmp_128 tmp_256 tmp_512 tmp_1024 iconset file name
 
   mkdir -p "${darwin_dir}"
-  tmp_1024="${darwin_dir}/.loophole-1024.png"
-  tmp_512="${darwin_dir}/.loophole-512.png"
-  tmp_256="${darwin_dir}/.loophole-256.png"
+  tmp_16="${darwin_dir}/.loophole-16.png"
+  tmp_32="${darwin_dir}/.loophole-32.png"
+  tmp_64="${darwin_dir}/.loophole-64.png"
   tmp_128="${darwin_dir}/.loophole-128.png"
+  tmp_256="${darwin_dir}/.loophole-256.png"
+  tmp_512="${darwin_dir}/.loophole-512.png"
+  tmp_1024="${darwin_dir}/.loophole-1024.png"
 
   convert "${MACOS_TEMPLATE}" -filter Lanczos -resize 1024x1024 "${tmp_1024}"
-  convert "${tmp_1024}" -filter Lanczos -resize 512x512 "${tmp_512}"
-  convert "${tmp_1024}" -filter Lanczos -resize 256x256 "${tmp_256}"
+  convert "${tmp_1024}" -filter Lanczos -resize 16x16 "${tmp_16}"
+  convert "${tmp_1024}" -filter Lanczos -resize 32x32 "${tmp_32}"
+  convert "${tmp_1024}" -filter Lanczos -resize 64x64 "${tmp_64}"
   convert "${tmp_1024}" -filter Lanczos -resize 128x128 "${tmp_128}"
+  convert "${tmp_1024}" -filter Lanczos -resize 256x256 "${tmp_256}"
+  convert "${tmp_1024}" -filter Lanczos -resize 512x512 "${tmp_512}"
+
   rm -f "${darwin_dir}/code.icns"
-  png2icns "${darwin_dir}/code.icns" "${tmp_512}" "${tmp_256}" "${tmp_128}"
+  if command -v png2icns >/dev/null 2>&1; then
+    png2icns "${darwin_dir}/code.icns" "${tmp_512}" "${tmp_256}" "${tmp_128}"
+  elif command -v iconutil >/dev/null 2>&1; then
+    # macOS does not provide png2icns through Homebrew. Use the native
+    # iconutil command with the standard macOS iconset layout instead.
+    iconset="${darwin_dir}/.loophole.iconset"
+    rm -rf "${iconset}"
+    mkdir -p "${iconset}"
+    cp "${tmp_16}" "${iconset}/icon_16x16.png"
+    cp "${tmp_32}" "${iconset}/icon_16x16@2x.png"
+    cp "${tmp_32}" "${iconset}/icon_32x32.png"
+    cp "${tmp_64}" "${iconset}/icon_32x32@2x.png"
+    cp "${tmp_128}" "${iconset}/icon_128x128.png"
+    cp "${tmp_256}" "${iconset}/icon_128x128@2x.png"
+    cp "${tmp_256}" "${iconset}/icon_256x256.png"
+    cp "${tmp_512}" "${iconset}/icon_256x256@2x.png"
+    cp "${tmp_512}" "${iconset}/icon_512x512.png"
+    cp "${tmp_1024}" "${iconset}/icon_512x512@2x.png"
+    if ! iconutil -c icns "${iconset}" -o "${darwin_dir}/code.icns"; then
+      rm -rf "${iconset}"
+      echo "Failed to create macOS icon with iconutil" >&2
+      return 1
+    fi
+    rm -rf "${iconset}"
+  else
+    echo "Required program not found: png2icns or iconutil" >&2
+    return 1
+  fi
 
   # Language/file icons otherwise shipped by the IDE still use upstream branding.
   for file in "${source_dir}"/*.icns; do
@@ -68,7 +101,7 @@ build_darwin_icons() {
     cp "${darwin_dir}/code.icns" "${file}"
   done
 
-  rm -f "${tmp_1024}" "${tmp_512}" "${tmp_256}" "${tmp_128}"
+  rm -f "${tmp_16}" "${tmp_32}" "${tmp_64}" "${tmp_128}" "${tmp_256}" "${tmp_512}" "${tmp_1024}"
 }
 
 build_linux_icons() {
