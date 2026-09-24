@@ -7,6 +7,9 @@ if [[ "${CI_BUILD}" == "no" ]]; then
   exit 1
 fi
 
+# Node 24 native-module headers require C++20 (tree-sitter and similar modules).
+export CXXFLAGS="${CXXFLAGS:-} -std=gnu++20"
+
 LOOPHOLE_BUILDER_ROOT="${LOOPHOLE_BUILDER_ROOT:-${GITHUB_WORKSPACE:-}}"
 if [[ -z "${LOOPHOLE_BUILDER_ROOT}" ]]; then
   LOOPHOLE_BUILDER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
