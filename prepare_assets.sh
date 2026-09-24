@@ -38,7 +38,7 @@ APP_NAME_LC="$( echo "${APP_NAME}" | awk '{print tolower($0)}' )"
 mkdir -p assets
 
 if [[ "${OS_NAME}" == "osx" ]]; then
-  if [[ -n "${CERTIFICATE_OSX_P12_DATA}" ]]; then
+  if [[ "${SHOULD_DEPLOY:-no}" == "yes" && -n "${CERTIFICATE_OSX_P12_DATA}" ]]; then
     if [[ "${CI_BUILD}" == "no" ]]; then
       RUNNER_TEMP="${TMPDIR}"
     fi
@@ -115,7 +115,11 @@ if [[ "${OS_NAME}" == "osx" ]]; then
       exit 1
     fi
     pushd "VSCode-darwin-${VSCODE_ARCH}"
-    "${CREATE_DMG_BIN}" ./*.app .
+    if [[ "${SHOULD_DEPLOY:-no}" == "yes" ]]; then
+      "${CREATE_DMG_BIN}" ./*.app .
+    else
+      "${CREATE_DMG_BIN}" --no-code-sign ./*.app .
+    fi
     # Keep the release asset name aligned with the IDE updater and versions feed.
     shopt -s nullglob
     dmg_files=( *.dmg )
@@ -133,7 +137,7 @@ if [[ "${OS_NAME}" == "osx" ]]; then
     git archive --format zip --output="./assets/${APP_NAME}-${RELEASE_VERSION}-src.zip" HEAD
   fi
 
-  if [[ -n "${CERTIFICATE_OSX_P12_DATA}" ]]; then
+  if [[ "${SHOULD_DEPLOY:-no}" == "yes" && -n "${CERTIFICATE_OSX_P12_DATA}" ]]; then
     echo "+ clean"
     security delete-keychain "${KEYCHAIN}"
     # shellcheck disable=SC2086
