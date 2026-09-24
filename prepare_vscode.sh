@@ -289,44 +289,44 @@ cp "../src/${metadata_quality}/resources/win32/VisualElementsManifest.xml" resou
 
 # Disable Microsoft's APT repository logic by making the non-code-oss branch match Loophole.
 if [[ "${VSCODE_QUALITY}" == "insider" ]]; then
-  sed -i "s/code-oss/loophole-insiders/" resources/linux/debian/postinst.template
+  replace "s/code-oss/loophole-insiders/" resources/linux/debian/postinst.template
 else
-  sed -i "s/code-oss/loophole/" resources/linux/debian/postinst.template
+  replace "s/code-oss/loophole/" resources/linux/debian/postinst.template
 fi
 
 # Linux package metadata.
-sed -i 's|Visual Studio Code|Loophole|g' resources/linux/code.appdata.xml
-sed -i 's|https://code.visualstudio.com/docs/setup/linux|https://loophole.dev|' resources/linux/code.appdata.xml
-sed -i 's|https://code.visualstudio.com/home/home-screenshot-linux-lg.png|https://raw.githubusercontent.com/loophole-ai/loophole-ide/main/loophole_icons/loophole_banner_light.png|' resources/linux/code.appdata.xml
-sed -i 's|https://code.visualstudio.com|https://loophole.dev|g' resources/linux/code.appdata.xml
+replace 's|Visual Studio Code|Loophole|g' resources/linux/code.appdata.xml
+replace 's|https://code.visualstudio.com/docs/setup/linux|https://loophole.dev|' resources/linux/code.appdata.xml
+replace 's|https://code.visualstudio.com/home/home-screenshot-linux-lg.png|https://raw.githubusercontent.com/loophole-ai/loophole-ide/main/loophole_icons/loophole_banner_light.png|' resources/linux/code.appdata.xml
+replace 's|https://code.visualstudio.com|https://loophole.dev|g' resources/linux/code.appdata.xml
 
-sed -i 's|Microsoft Corporation <vscode-linux@microsoft.com>|Loophole AI <team@loophole.dev>|' resources/linux/debian/control.template
-sed -i 's|Visual Studio Code|Loophole|g' resources/linux/debian/control.template
-sed -i 's|https://code.visualstudio.com/docs/setup/linux|https://loophole.dev|' resources/linux/debian/control.template
-sed -i 's|https://code.visualstudio.com|https://loophole.dev|g' resources/linux/debian/control.template
+replace 's|Microsoft Corporation <vscode-linux@microsoft.com>|Loophole AI <team@loophole.dev>|' resources/linux/debian/control.template
+replace 's|Visual Studio Code|Loophole|g' resources/linux/debian/control.template
+replace 's|https://code.visualstudio.com/docs/setup/linux|https://loophole.dev|' resources/linux/debian/control.template
+replace 's|https://code.visualstudio.com|https://loophole.dev|g' resources/linux/debian/control.template
 
-sed -i 's|Microsoft Corporation|Loophole AI|' resources/linux/rpm/code.spec.template
-sed -i 's|Visual Studio Code Team <vscode-linux@microsoft.com>|Loophole AI <team@loophole.dev>|' resources/linux/rpm/code.spec.template
-sed -i 's|Visual Studio Code|Loophole|g' resources/linux/rpm/code.spec.template
-sed -i 's|https://code.visualstudio.com/docs/setup/linux|https://loophole.dev|' resources/linux/rpm/code.spec.template
-sed -i 's|https://code.visualstudio.com|https://loophole.dev|g' resources/linux/rpm/code.spec.template
+replace 's|Microsoft Corporation|Loophole AI|' resources/linux/rpm/code.spec.template
+replace 's|Visual Studio Code Team <vscode-linux@microsoft.com>|Loophole AI <team@loophole.dev>|' resources/linux/rpm/code.spec.template
+replace 's|Visual Studio Code|Loophole|g' resources/linux/rpm/code.spec.template
+replace 's|https://code.visualstudio.com/docs/setup/linux|https://loophole.dev|' resources/linux/rpm/code.spec.template
+replace 's|https://code.visualstudio.com|https://loophole.dev|g' resources/linux/rpm/code.spec.template
 
 for desktop_file in resources/linux/code.desktop resources/linux/code-url-handler.desktop; do
   if [[ -f "${desktop_file}" ]]; then
-    sed -i 's|Keywords=.*|Keywords=loophole;loophole-editor;ai;vscode;|' "${desktop_file}"
-    sed -i '/^Name\[[^]]*\]=/d' "${desktop_file}"
+    replace 's|Keywords=.*|Keywords=loophole;loophole-editor;ai;vscode;|' "${desktop_file}"
+    replace '/^Name\[[^]]*\]=/d' "${desktop_file}"
   fi
 done
 
 # Windows package metadata.
 if [[ -f resources/win32/VisualElementsManifest.xml ]]; then
   if [[ "${VSCODE_QUALITY}" == "insider" ]]; then
-    sed -i 's|ShortDisplayName="[^"]*"|ShortDisplayName="Loophole - Insiders"|' resources/win32/VisualElementsManifest.xml
+    replace 's|ShortDisplayName="[^"]*"|ShortDisplayName="Loophole - Insiders"|' resources/win32/VisualElementsManifest.xml
   else
-    sed -i 's|ShortDisplayName="[^"]*"|ShortDisplayName="Loophole"|' resources/win32/VisualElementsManifest.xml
+    replace 's|ShortDisplayName="[^"]*"|ShortDisplayName="Loophole"|' resources/win32/VisualElementsManifest.xml
   fi
 fi
-sed -i 's|https://code.visualstudio.com|https://loophole.dev|g' build/win32/code.iss
-sed -i 's|Microsoft Corporation|Loophole AI|g' build/win32/code.iss
+replace 's|https://code.visualstudio.com|https://loophole.dev|g' build/win32/code.iss
+replace 's|Microsoft Corporation|Loophole AI|g' build/win32/code.iss
 
 cd ..
