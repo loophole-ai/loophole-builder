@@ -248,7 +248,7 @@ ci_bump_version() {
   fi
 
   RELEASE_VERSION="${LOOPHOLE_VERSION}"
-  RELEASE_TITLE="Loophole ${LOOPHOLE_VERSION}"
+  RELEASE_TITLE="${LOOPHOLE_VERSION}"
 
   echo "Incremented loopholeVersion: ${base_version} -> ${LOOPHOLE_VERSION}"
   echo "RELEASE_VERSION=${RELEASE_VERSION}"

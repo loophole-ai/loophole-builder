@@ -98,7 +98,7 @@ ci_repo_loophole_ide() {
   if [[ -n "${RELEASE_VERSION:-}" && -n "${LOOPHOLE_VERSION:-}" ]]; then
     pin_versions=true
     echo "Keeping pinned versions RELEASE_VERSION=${RELEASE_VERSION} LOOPHOLE_VERSION=${LOOPHOLE_VERSION}"
-    RELEASE_TITLE="${RELEASE_TITLE:-Loophole ${LOOPHOLE_VERSION}}"
+    RELEASE_TITLE="${RELEASE_TITLE:-${LOOPHOLE_VERSION}}"
   else
     LOOPHOLE_VERSION=$( jq -r '.loopholeVersion // empty' product.json )
     [[ "${LOOPHOLE_VERSION}" == "null" ]] && LOOPHOLE_VERSION=""
@@ -109,7 +109,7 @@ ci_repo_loophole_ide() {
     fi
 
     RELEASE_VERSION="${LOOPHOLE_VERSION}"
-    RELEASE_TITLE="Loophole ${LOOPHOLE_VERSION}"
+    RELEASE_TITLE="${LOOPHOLE_VERSION}"
   fi
 
   ci_apply_loophole_version

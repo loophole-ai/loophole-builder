@@ -31,7 +31,7 @@ release_ensure_exists() {
 
   LOOPHOLE_VERSION="${LOOPHOLE_VERSION:-${RELEASE_VERSION}}"
   if [[ -z "${RELEASE_TITLE:-}" ]]; then
-    RELEASE_TITLE="Loophole ${LOOPHOLE_VERSION}"
+    RELEASE_TITLE="${LOOPHOLE_VERSION}"
   fi
 
   if gh release view "${RELEASE_VERSION}" --repo "${ASSETS_REPOSITORY}" &>/dev/null; then
