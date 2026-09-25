@@ -116,7 +116,12 @@ if [[ "${OS_NAME}" == "osx" ]]; then
     fi
     pushd "VSCode-darwin-${VSCODE_ARCH}"
     create_dmg_flags=(--overwrite)
-    if [[ "${SHOULD_DEPLOY:-no}" != "yes" ]]; then
+    # Deploy mode still needs an explicit unsigned fallback when signing
+    # secrets are unavailable (for example, a manual CI run or a fork).
+    if [[ "${SHOULD_DEPLOY:-no}" != "yes" || -z "${CERTIFICATE_OSX_P12_DATA}" ]]; then
+      if [[ "${SHOULD_DEPLOY:-no}" == "yes" ]]; then
+        echo "::warning::No macOS signing certificate is configured; creating an unsigned DMG."
+      fi
       create_dmg_flags+=(--no-code-sign)
     fi
 
