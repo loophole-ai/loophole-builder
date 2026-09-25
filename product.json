@@ -65,7 +65,6 @@
       "documentFiltersExclusive",
       "fileSearchProvider",
       "findTextInFiles",
-      "notebookCellExecutionState",
       "notebookLiveShare",
       "terminalDimensions",
       "terminalDataWriteEvent",
@@ -91,12 +90,10 @@
       "terminalExecuteCommandEvent",
       "notebookReplDocument",
       "notebookVariableProvider",
-      "terminalShellEnv",
-      "terminalShellType"
+      "terminalShellEnv"
     ],
     "ms-python.vscode-python-envs": [
-      "terminalShellEnv",
-      "terminalShellType"
+      "terminalShellEnv"
     ],
     "ms-dotnettools.dotnet-interactive-vscode": [
       "notebookMessaging"
@@ -222,7 +219,6 @@
       "chatParticipantAdditions",
       "defaultChatParticipant",
       "embeddings",
-      "chatEditing",
       "chatProvider",
       "mappedEditsProvider",
       "aiRelatedInformation",
@@ -244,16 +240,13 @@
       "authLearnMore",
       "testObserver",
       "aiTextSearchProvider",
-      "chatReadonlyPromptReference",
       "documentFiltersExclusive",
       "chatParticipantPrivate",
       "contribDebugCreateConfiguration",
-      "inlineEdit",
       "inlineCompletionsAdditions",
       "chatReferenceBinaryData",
       "languageModelSystem",
       "languageModelCapabilities",
-      "languageModelDataPart",
       "chatStatusItem"
     ],
     "GitHub.remotehub": [
@@ -271,9 +264,7 @@
       "textSearchProvider",
       "timeline"
     ],
-    "ms-python.gather": [
-      "notebookCellExecutionState"
-    ],
+    "ms-python.gather": [],
     "ms-python.vscode-pylance": [],
     "ms-python.debugpy": [
       "contribViewsWelcome",
