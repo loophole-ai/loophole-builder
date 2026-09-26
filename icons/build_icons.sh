@@ -33,10 +33,40 @@ require_program base64
 LOGO="${BUILDER_ROOT}/icons/${VSCODE_QUALITY}/loophole_logo.png"
 ONBOARDING_LOGO="${BUILDER_ROOT}/icons/${VSCODE_QUALITY}/onboarding_logo180.png"
 MACOS_TEMPLATE="${BUILDER_ROOT}/icons/template_macos.png"
+INNO_DIR="${BUILDER_ROOT}/icons/${VSCODE_QUALITY}/inno"
 
 for asset in "${LOGO}" "${ONBOARDING_LOGO}" "${MACOS_TEMPLATE}"; do
   if [[ ! -f "${asset}" ]]; then
     echo "Loophole icon asset not found: ${asset}" >&2
+    exit 1
+  fi
+done
+
+# Installer bitmaps consumed by WizardImageFile / WizardSmallImageFile in
+# build/win32/code.iss. These are hand-authored Loophole artwork rather than
+# generated output: the big images are a full-bleed banner carrying the
+# wordmark, and the small ones are the rounded app icon. Neither can be derived
+# from a single square logo, so they are copied verbatim.
+INNO_BITMAPS=(
+  inno-big-100.bmp
+  inno-big-125.bmp
+  inno-big-150.bmp
+  inno-big-175.bmp
+  inno-big-200.bmp
+  inno-big-225.bmp
+  inno-big-250.bmp
+  inno-small-100.bmp
+  inno-small-125.bmp
+  inno-small-150.bmp
+  inno-small-175.bmp
+  inno-small-200.bmp
+  inno-small-225.bmp
+  inno-small-250.bmp
+)
+
+for bitmap in "${INNO_BITMAPS[@]}"; do
+  if [[ ! -f "${INNO_DIR}/${bitmap}" ]]; then
+    echo "Loophole installer bitmap not found: ${INNO_DIR}/${bitmap}" >&2
     exit 1
   fi
 done
@@ -138,7 +168,8 @@ build_windows_icon_set() {
   elif [[ "${output}" == *.png ]]; then
     convert -size "${canvas_size}" "xc:transparent" \( "${LOGO}" -filter Lanczos -resize "${logo_size}x${logo_size}" \) -gravity center -composite "${output}"
   else
-    convert -size "${canvas_size}" xc:white \( "${LOGO}" -filter Lanczos -resize "${logo_size}x${logo_size}" \) -gravity center -composite "${output}"
+    echo "Unsupported generated icon format: ${output}" >&2
+    return 1
   fi
 }
 
@@ -161,20 +192,12 @@ build_windows_icons() {
   build_windows_icon_set "${win32_dir}/code_70x70.png" 45 70x70
   build_windows_icon_set "${win32_dir}/code_150x150.png" 120 150x150
 
-  build_windows_icon_set "${win32_dir}/inno-big-100.bmp" 110 164x314
-  build_windows_icon_set "${win32_dir}/inno-big-125.bmp" 128 205x393
-  build_windows_icon_set "${win32_dir}/inno-big-150.bmp" 165 246x471
-  build_windows_icon_set "${win32_dir}/inno-big-175.bmp" 184 287x550
-  build_windows_icon_set "${win32_dir}/inno-big-200.bmp" 220 328x628
-  build_windows_icon_set "${win32_dir}/inno-big-225.bmp" 238 369x707
-  build_windows_icon_set "${win32_dir}/inno-big-250.bmp" 275 410x785
-  build_windows_icon_set "${win32_dir}/inno-small-100.bmp" 38 55x58
-  build_windows_icon_set "${win32_dir}/inno-small-125.bmp" 44 68x72
-  build_windows_icon_set "${win32_dir}/inno-small-150.bmp" 56 82x87
-  build_windows_icon_set "${win32_dir}/inno-small-175.bmp" 62 96x101
-  build_windows_icon_set "${win32_dir}/inno-small-200.bmp" 74 110x116
-  build_windows_icon_set "${win32_dir}/inno-small-225.bmp" 80 123x130
-  build_windows_icon_set "${win32_dir}/inno-small-250.bmp" 92 137x145
+  # Inno Setup wizard images are copied, not generated: compositing the square
+  # logo here is what produced the washed-out white panel in the installer.
+  local bitmap
+  for bitmap in "${INNO_BITMAPS[@]}"; do
+    cp "${INNO_DIR}/${bitmap}" "${win32_dir}/${bitmap}"
+  done
 }
 
 build_server_icons() {
