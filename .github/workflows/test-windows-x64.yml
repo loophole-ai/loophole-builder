@@ -1,0 +1,175 @@
+# Windows x64 smoke build.
+#
+# Builds a single arch so a fix can be verified quickly: no release, no draft, no
+# version bump, and no write to loophole-ai/versions. The only output is the
+# installer .exe uploaded as a workflow artifact - deliberately not the zip and
+# not the MSI, so what you download is directly runnable.
+#
+# It also greps the built workbench bundle for the bare npm specifier that caused
+# the 2.2.3 black screen, so a regression is visible in the run log rather than
+# only after installing.
+name: Loophole Windows x64 Test Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      ide_branch:
+        type: string
+        description: 'Loophole IDE branch to build (default: repo default branch)'
+        default: ''
+      ide_commit:
+        type: string
+        description: 'Loophole IDE commit to build (overrides ide_branch)'
+        default: ''
+      checkout_pr:
+        type: string
+        description: 'Optional builder pull request number to merge before building'
+        default: ''
+
+concurrency:
+  group: test-windows-x64-${{ github.repository }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: write
+
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+  APP_NAME: Loophole
+  ASSETS_REPOSITORY: loophole-ai/loophole-ide
+  BINARY_NAME: loophole
+  GH_REPO_PATH: loophole-ai/loophole-ide
+  ORG_NAME: loophole-ai
+  VERSIONS_REPOSITORY: loophole-ai/versions
+  VSCODE_QUALITY: stable
+
+jobs:
+  check:
+    uses: ./.github/workflows/stable-check.yml
+    with:
+      BUILD_ONLY: 'yes'
+      CHECKOUT_PR: ${{ github.event.inputs.checkout_pr }}
+      IDE_COMMIT: ${{ github.event.inputs.ide_commit }}
+      IDE_BRANCH: ${{ github.event.inputs.ide_branch }}
+    secrets: inherit
+
+  compile:
+    needs: [check]
+    uses: ./.github/workflows/stable-compile.yml
+    with:
+      MS_COMMIT: ${{ needs.check.outputs.MS_COMMIT }}
+      MS_TAG: ${{ needs.check.outputs.MS_TAG }}
+      RELEASE_VERSION: ${{ needs.check.outputs.RELEASE_VERSION }}
+      RELEASE_TITLE: ${{ needs.check.outputs.RELEASE_TITLE }}
+      LOOPHOLE_VERSION: ${{ needs.check.outputs.LOOPHOLE_VERSION }}
+      SHOULD_BUILD: ${{ needs.check.outputs.SHOULD_BUILD }}
+      SHOULD_DEPLOY: 'no'
+    secrets: inherit
+
+  build_windows_x64:
+    needs: [check, compile]
+    runs-on: windows-2022
+    env:
+      BUILD_SOURCEVERSION: ${{ needs.compile.outputs.BUILD_SOURCEVERSION }}
+      MS_COMMIT: ${{ needs.check.outputs.MS_COMMIT }}
+      MS_TAG: ${{ needs.check.outputs.MS_TAG }}
+      RELEASE_VERSION: ${{ needs.check.outputs.RELEASE_VERSION }}
+      RELEASE_TITLE: ${{ needs.check.outputs.RELEASE_TITLE }}
+      LOOPHOLE_VERSION: ${{ needs.check.outputs.LOOPHOLE_VERSION }}
+      # hard-overridden: this workflow must never deploy
+      SHOULD_BUILD: 'yes'
+      SHOULD_DEPLOY: 'no'
+      VSCODE_ARCH: x64
+      OS_NAME: windows
+      npm_config_msvs_version: '2022'
+      LOOPHOLE_BUILDER_ROOT: ${{ github.workspace }}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Checkout builder PR and clone Loophole-ide
+        env:
+          PULL_REQUEST_ID: ${{ github.event.inputs.checkout_pr }}
+        run: ./ci_repo.sh pr
+
+      - name: Platform CI setup
+        shell: bash
+        env:
+          CHECK_REH: 'no'
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./ci_platform.sh
+
+      - name: Download vscode artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: vscode
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24.18.0'
+
+      - name: Pin npm version
+        run: npm install -g "npm@<11.2.0"
+
+      - name: Build
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          npm_config_arch: x64
+        run: ./build/windows/package.sh
+
+      - name: Prepare assets
+        shell: bash
+        env:
+          SHOULD_BUILD_REH: 'no'
+          SHOULD_BUILD_REH_WEB: 'no'
+          # installer only: no portable zip, no MSI (both are slow and not needed
+          # for a smoke test)
+          SHOULD_BUILD_ZIP: 'no'
+          SHOULD_BUILD_MSI: 'no'
+          SHOULD_BUILD_MSI_NOUP: 'no'
+        run: ./prepare_assets.sh
+
+      - name: List assets
+        shell: bash
+        run: ls -la assets/ || echo 'assets/ missing'
+
+      # Guards the 2.2.3 black screen: the workbench is loaded as a native ES
+      # module with no npm import map, so a bare specifier surviving bundling
+      # makes the whole IDE fail to boot.
+      - name: Check workbench bundle for unresolvable bare imports
+        shell: bash
+        run: |
+          set -uo pipefail
+          found=0
+          while IFS= read -r f; do
+            [ -f "$f" ] || continue
+            if grep -qF 'from"@huggingface/transformers"' "$f" || grep -qF "from'@huggingface/transformers'" "$f"; then
+              echo "::error file=$f::Bare @huggingface/transformers import in the renderer bundle - the IDE will boot to a black screen."
+              found=1
+            fi
+          done < <(find . -name 'workbench.desktop.main.js' -not -path '*/node_modules/*' 2>/dev/null)
+          if [ "$found" -eq 0 ]; then
+            echo "OK: no bare @huggingface/transformers import in any workbench bundle."
+          fi
+        continue-on-error: true
+
+      - name: Upload installer exe
+        uses: actions/upload-artifact@v6
+        with:
+          name: loophole-windows-x64-setup
+          path: |
+            assets/LoopholeSetup-x64-*.exe
+            assets/LoopholeUserSetup-x64-*.exe
+          if-no-files-found: error
+          retention-days: 7
