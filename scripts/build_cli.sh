@@ -16,8 +16,8 @@ export VSCODE_CLI_DATA_FOLDER_NAME VSCODE_CLI_SERVER_DATA_FOLDER_NAME VSCODE_CLI
 export VSCODE_CLI_QUALITYLESS_PRODUCT_NAME="Loophole"
 export VSCODE_CLI_QUALITY="${VSCODE_QUALITY:-stable}"
 export VSCODE_CLI_COMMIT="${MS_COMMIT:-}"
-export VSCODE_CLI_DOCUMENTATION_URL="https://loophole.dev"
-export VSCODE_CLI_TUNNEL_EDITOR_WEB_URL="https://loophole.dev"
+export VSCODE_CLI_DOCUMENTATION_URL="https://www.loopholeeditor.in"
+export VSCODE_CLI_TUNNEL_EDITOR_WEB_URL="https://www.loopholeeditor.in"
 export VSCODE_CLI_UPDATE_URL="https://raw.githubusercontent.com/loophole-ai/versions/refs/heads/main"
 
 if [[ "${VSCODE_QUALITY}" == "insider" ]]; then

@@ -148,7 +148,7 @@ setpath_json() {
 # Merge the builder's product overrides into the Loophole IDE product metadata.
 cp product.json{,.bak}
 
-setpath "product" "documentationUrl" "https://loophole.dev"
+setpath "product" "documentationUrl" "https://www.loopholeeditor.in"
 setpath "product" "licenseUrl" "https://github.com/loophole-ai/loophole-ide/blob/main/LICENSE.txt"
 setpath "product" "reportIssueUrl" "https://github.com/loophole-ai/loophole-ide/issues/new"
 setpath "product" "requestFeatureUrl" "https://github.com/loophole-ai/loophole-ide/issues/new"
@@ -296,20 +296,20 @@ fi
 
 # Linux package metadata.
 replace 's|Visual Studio Code|Loophole|g' resources/linux/code.appdata.xml
-replace 's|https://code.visualstudio.com/docs/setup/linux|https://loophole.dev|' resources/linux/code.appdata.xml
+replace 's|https://code.visualstudio.com/docs/setup/linux|https://www.loopholeeditor.in|' resources/linux/code.appdata.xml
 replace 's|https://code.visualstudio.com/home/home-screenshot-linux-lg.png|https://raw.githubusercontent.com/loophole-ai/loophole-ide/main/loophole_icons/loophole_banner_light.png|' resources/linux/code.appdata.xml
-replace 's|https://code.visualstudio.com|https://loophole.dev|g' resources/linux/code.appdata.xml
+replace 's|https://code.visualstudio.com|https://www.loopholeeditor.in|g' resources/linux/code.appdata.xml
 
 replace 's|Microsoft Corporation <vscode-linux@microsoft.com>|Loophole AI <team@loophole.dev>|' resources/linux/debian/control.template
 replace 's|Visual Studio Code|Loophole|g' resources/linux/debian/control.template
-replace 's|https://code.visualstudio.com/docs/setup/linux|https://loophole.dev|' resources/linux/debian/control.template
-replace 's|https://code.visualstudio.com|https://loophole.dev|g' resources/linux/debian/control.template
+replace 's|https://code.visualstudio.com/docs/setup/linux|https://www.loopholeeditor.in|' resources/linux/debian/control.template
+replace 's|https://code.visualstudio.com|https://www.loopholeeditor.in|g' resources/linux/debian/control.template
 
 replace 's|Microsoft Corporation|Loophole AI|' resources/linux/rpm/code.spec.template
 replace 's|Visual Studio Code Team <vscode-linux@microsoft.com>|Loophole AI <team@loophole.dev>|' resources/linux/rpm/code.spec.template
 replace 's|Visual Studio Code|Loophole|g' resources/linux/rpm/code.spec.template
-replace 's|https://code.visualstudio.com/docs/setup/linux|https://loophole.dev|' resources/linux/rpm/code.spec.template
-replace 's|https://code.visualstudio.com|https://loophole.dev|g' resources/linux/rpm/code.spec.template
+replace 's|https://code.visualstudio.com/docs/setup/linux|https://www.loopholeeditor.in|' resources/linux/rpm/code.spec.template
+replace 's|https://code.visualstudio.com|https://www.loopholeeditor.in|g' resources/linux/rpm/code.spec.template
 
 for desktop_file in resources/linux/code.desktop resources/linux/code-url-handler.desktop; do
   if [[ -f "${desktop_file}" ]]; then
@@ -326,7 +326,7 @@ if [[ -f resources/win32/VisualElementsManifest.xml ]]; then
     replace 's|ShortDisplayName="[^"]*"|ShortDisplayName="Loophole"|' resources/win32/VisualElementsManifest.xml
   fi
 fi
-replace 's|https://code.visualstudio.com|https://loophole.dev|g' build/win32/code.iss
+replace 's|https://code.visualstudio.com|https://www.loopholeeditor.in|g' build/win32/code.iss
 replace 's|Microsoft Corporation|Loophole AI|g' build/win32/code.iss
 
 cd ..

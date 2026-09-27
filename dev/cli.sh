@@ -14,8 +14,8 @@ export VSCODE_CLI_DATA_FOLDER_NAME=".loophole-editor"
 export VSCODE_CLI_SERVER_DATA_FOLDER_NAME=".loophole-server"
 export VSCODE_CLI_DOWNLOAD_URL="https://github.com/loophole-ai/loophole-ide/releases"
 export VSCODE_CLI_UPDATE_URL="https://raw.githubusercontent.com/loophole-ai/versions/refs/heads/main"
-export VSCODE_CLI_DOCUMENTATION_URL="https://loophole.dev"
-export VSCODE_CLI_TUNNEL_EDITOR_WEB_URL="https://loophole.dev"
+export VSCODE_CLI_DOCUMENTATION_URL="https://www.loopholeeditor.in"
+export VSCODE_CLI_TUNNEL_EDITOR_WEB_URL="https://www.loopholeeditor.in"
 
 cargo build --release --target aarch64-apple-darwin --bin=code
 
