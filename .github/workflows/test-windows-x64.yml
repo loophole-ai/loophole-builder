@@ -86,7 +86,7 @@ jobs:
       LOOPHOLE_BUILDER_ROOT: ${{ github.workspace }}
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Checkout builder PR and clone Loophole-ide
         env:
