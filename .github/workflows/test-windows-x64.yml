@@ -172,3 +172,24 @@ jobs:
             assets/LoopholeUserSetup-x64-*.exe
           if-no-files-found: error
           retention-days: 7
+
+      # Also publish the per-machine installer to gofile.io. GitHub's artifact
+      # service is slow to serve a ~500 MB exe, and this build exists only so a
+      # fix can be smoke tested, so a direct CDN link is more useful than the
+      # artifact here. The artifact upload above stays as the copy of record.
+      #
+      # continue-on-error is deliberate: a third-party host being slow or down
+      # must not fail a build whose real output already succeeded.
+      - name: Upload installer to gofile.io
+        shell: bash
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          # per-machine installer only; skip the per-user one to save bandwidth
+          exe=$(ls -1 assets/LoopholeSetup-x64-*.exe 2>/dev/null | head -n1 || true)
+          if [[ -z "$exe" ]]; then
+            echo "::warning::no LoopholeSetup-x64-*.exe in assets/, skipping gofile upload"
+            ls -la assets/ || true
+            exit 0
+          fi
+          bash scripts/upload-to-gofile.sh "$exe"
