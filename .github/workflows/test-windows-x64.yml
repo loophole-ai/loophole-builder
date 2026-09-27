@@ -144,25 +144,24 @@ jobs:
         shell: bash
         run: ls -la assets/ || echo 'assets/ missing'
 
-      # Guards the 2.2.3 black screen: the workbench is loaded as a native ES
-      # module with no npm import map, so a bare specifier surviving bundling
-      # makes the whole IDE fail to boot.
+      # Guards the black screen: the workbench is loaded as a native ES module
+      # with no npm import map, so a bare specifier surviving bundling makes the
+      # whole IDE fail to boot.
+      #
+      # This checks EVERY import specifier, not one hard-coded package name, and
+      # it is allowed to fail the run. The previous version grepped only for
+      # @huggingface/transformers and was marked continue-on-error, so it
+      # reported OK for any other bare specifier and could never fail anything.
+      # It parses each bundle with Node's ES module parser rather than grepping,
+      # because these bundles are minified and a regex matches across string
+      # boundaries. scripts/check-bare-imports.selftest.mjs covers the checker.
+      - name: Check the guard itself still detects bare imports
+        shell: bash
+        run: node scripts/check-bare-imports.selftest.mjs scripts/check-bare-imports.js
+
       - name: Check workbench bundle for unresolvable bare imports
         shell: bash
-        run: |
-          set -uo pipefail
-          found=0
-          while IFS= read -r f; do
-            [ -f "$f" ] || continue
-            if grep -qF 'from"@huggingface/transformers"' "$f" || grep -qF "from'@huggingface/transformers'" "$f"; then
-              echo "::error file=$f::Bare @huggingface/transformers import in the renderer bundle - the IDE will boot to a black screen."
-              found=1
-            fi
-          done < <(find . -name 'workbench.desktop.main.js' -not -path '*/node_modules/*' 2>/dev/null)
-          if [ "$found" -eq 0 ]; then
-            echo "OK: no bare @huggingface/transformers import in any workbench bundle."
-          fi
-        continue-on-error: true
+        run: node scripts/check-bare-imports.js .
 
       - name: Upload installer exe
         uses: actions/upload-artifact@v6

@@ -131,6 +131,15 @@ jobs:
         run: ls -la assets/ || echo "assets/ missing"
         if: env.DISABLED != 'yes' && env.SHOULD_BUILD == 'yes'
 
+      # The workbench is one native ES module with no npm import map, so a bare
+      # specifier surviving bundling means the IDE boots to a black screen. This
+      # blocks the release rather than warning, because a shipped build that does
+      # not start is worse than a failed pipeline.
+      - name: Check workbench bundle for unresolvable bare imports
+        shell: bash
+        run: node scripts/check-bare-imports.js .
+        if: env.DISABLED != 'yes' && env.SHOULD_BUILD == 'yes'
+
       - name: Upload to GitHub release
         shell: bash
         env:
