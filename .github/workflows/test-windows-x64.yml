@@ -164,7 +164,7 @@ jobs:
         run: node scripts/check-bare-imports.js .
 
       - name: Upload installer exe
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: loophole-windows-x64-setup
           path: |
