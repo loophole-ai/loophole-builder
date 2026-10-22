@@ -110,6 +110,11 @@ jobs:
         run: npm install -g "npm@<11.2.0"
         if: env.DISABLED != 'yes' && env.SHOULD_BUILD == 'yes'
 
+      - name: Fetch bundled Loophole CLI from npm
+        shell: bash
+        run: ./scripts/bundle-cli.sh ${{ matrix.vscode_arch }}
+        if: env.DISABLED != 'yes' && env.SHOULD_BUILD == 'yes'
+
       - name: Build
         shell: bash
         env:

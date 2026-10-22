@@ -108,6 +108,11 @@ jobs:
           sudo apt-get install -y libnss3 libpango-1.0-0 libudev1 libx11-6 libxcb1 libxcomposite1 libxdamage1 libxext6 libxfixes3 libxkbcommon0 libxkbfile1 libxrandr2 xdg-utils zlib1g
         if: env.DISABLED != 'yes' && env.SHOULD_BUILD == 'yes'
 
+      - name: Fetch bundled Loophole CLI from npm
+        shell: bash
+        run: ./scripts/bundle-cli.sh ${{ matrix.vscode_arch }}
+        if: env.DISABLED != 'yes' && env.SHOULD_BUILD == 'yes'
+
       - uses: actions-rust-lang/setup-rust-toolchain@v1.16.0
         if: env.DISABLED != 'yes' && env.SHOULD_BUILD == 'yes'
 
