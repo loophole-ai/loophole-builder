@@ -121,6 +121,10 @@ jobs:
       - name: Pin npm version
         run: npm install -g "npm@<11.2.0"
 
+      - name: Fetch bundled Loophole CLI from npm
+        shell: bash
+        run: ./scripts/bundle-cli.sh x64
+
       - name: Build
         shell: bash
         env:
