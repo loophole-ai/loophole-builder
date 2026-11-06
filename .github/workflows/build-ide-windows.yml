@@ -1,0 +1,177 @@
+name: Build Loophole IDE - Windows():
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "loophole-code branch, tag, or SHA"
+        required: true
+        default: "ci/windows-x64-test"
+      agent_ref:
+        description: "loophole-agent branch, tag, or SHA"
+        required: true
+        default: "main"
+      generate_assets:
+        description: "Build and upload assets to Gofile"
+        type: boolean
+        default: true
+
+env:
+  APP_NAME: Loophole
+  BINARY_NAME: loophole
+  DISABLE_UPDATE: "yes"
+  GH_REPO_PATH: loophole-ai/loophole-code
+  ORG_NAME: loophole-ai
+  OS_NAME: windows
+  VSCODE_QUALITY: stable
+  VSCODE_ARCH: x64
+
+permissions:
+  contents: read
+
+jobs:
+  compile:
+    runs-on: windows-2022
+    defaults:
+      run:
+        working-directory: code
+        shell: bash
+    outputs:
+      BUILD_SOURCEVERSION: ${{ env.BUILD_SOURCEVERSION }}
+      MS_COMMIT: ${{ env.MS_COMMIT }}
+      MS_TAG: ${{ env.MS_TAG }}
+      RELEASE_VERSION: ${{ env.RELEASE_VERSION }}
+    steps:
+      - name: Checkout loophole-code
+        uses: actions/checkout@v4
+        with:
+          repository: loophole-ai/loophole-code
+          ref: ${{ github.event.inputs.ref }}
+          path: code
+          token: ${{ secrets.APP_REPO_TOKEN }}
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: code/.nvmrc
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Clone VS Code
+        run: ./get_repo.sh
+
+      - name: Build VS Code
+        env:
+          SHOULD_BUILD: "yes"
+          SHOULD_BUILD_REH: "no"
+          SHOULD_BUILD_REH_WEB: "no"
+        run: ./build.sh
+
+      - name: Compress built tree
+        run: |
+          find vscode -type f -not -path "*/node_modules/*" -not -path "vscode/.build/node/*" -not -path "vscode/.git/*" > vscode.txt
+          echo "vscode/.build/extensions/node_modules" >> vscode.txt
+          echo "vscode/.git" >> vscode.txt
+          tar -czf vscode.tar.gz -T vscode.txt
+
+      - name: Save built tree cache
+        uses: actions/cache/save@v4
+        with:
+          key: vscode-${{ github.run_id }}-${{ github.run_attempt }}
+          path: code/vscode.tar.gz
+
+  build:
+    needs: compile
+    runs-on: windows-2022
+    defaults:
+      run:
+        working-directory: code
+        shell: bash
+    env:
+      BUILD_SOURCEVERSION: ${{ needs.compile.outputs.BUILD_SOURCEVERSION }}
+      MS_COMMIT: ${{ needs.compile.outputs.MS_COMMIT }}
+      MS_TAG: ${{ needs.compile.outputs.MS_TAG }}
+      RELEASE_VERSION: ${{ needs.compile.outputs.RELEASE_VERSION }}
+      SHOULD_BUILD_MSI: "no"
+      SHOULD_BUILD_MSI_NOUP: "no"
+      SHOULD_BUILD_REH: "no"
+      SHOULD_BUILD_REH_WEB: "no"
+      AGENT_REPO: loophole-ai/loophole-agent
+      AGENT_REF: ${{ github.event.inputs.agent_ref }}
+    steps:
+      - name: Checkout loophole-code
+        uses: actions/checkout@v4
+        with:
+          repository: loophole-ai/loophole-code
+          ref: ${{ github.event.inputs.ref }}
+          path: code
+          token: ${{ secrets.APP_REPO_TOKEN }}
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: code/.nvmrc
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Restore built tree
+        uses: actions/cache/restore@v4
+        with:
+          key: vscode-${{ github.run_id }}-${{ github.run_attempt }}
+          path: code/vscode.tar.gz
+          fail-on-cache-miss: true
+
+      - name: Package IDE
+        env:
+          GITHUB_TOKEN: ${{ secrets.APP_REPO_TOKEN }}
+          AGENT_TOKEN: ${{ secrets.APP_REPO_TOKEN }}
+          npm_config_arch: x64
+          npm_config_target_arch: x64
+        run: ./build/windows/package.sh
+
+      - name: Prepare assets
+        if: github.event.inputs.generate_assets == 'true'
+        run: ./prepare_assets.sh
+
+      - name: Prepare checksums
+        if: github.event.inputs.generate_assets == 'true'
+        run: ./prepare_checksums.sh
+
+      - name: Upload assets to Gofile
+        if: github.event.inputs.generate_assets == 'true'
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(assets/*)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::error::No assets to upload"
+            exit 1
+          fi
+          for FILE in "${files[@]}"; do
+            [ -f "${FILE}" ] || continue
+            NAME="$(basename "${FILE}")"
+            echo "Uploading ${NAME} ($(du -h "${FILE}" | cut -f1))"
+            LINK=""
+            RESPONSE=""
+            for attempt in 1 2 3; do
+              RESPONSE="$(curl -sS --fail --retry 3 --max-time 1800 -F "file=@${FILE}" https://upload.gofile.io/uploadfile || true)"
+              LINK="$(echo "${RESPONSE}" | grep -o '"downloadPage":"[^"]*"' | cut -d'"' -f4)"
+              [ -n "${LINK}" ] && break
+              echo "Attempt ${attempt} failed for ${NAME}; retrying..."
+              sleep 10
+            done
+            if [[ -z "${LINK}" ]]; then
+              echo "::error::Gofile did not return a download link for ${NAME}. Response: ${RESPONSE}"
+              exit 1
+            fi
+            echo "Download ${NAME}: ${LINK}"
+            echo "### Loophole ${VSCODE_ARCH} — ${NAME}: ${LINK}" >> "${GITHUB_STEP_SUMMARY}"
+          done
