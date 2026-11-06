@@ -1,4 +1,4 @@
-name: Build Loophole IDE - Windows():
+name: Build Loophole IDE - Windows Test
 
 on:
   workflow_dispatch:
