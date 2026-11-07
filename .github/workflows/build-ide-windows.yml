@@ -155,6 +155,8 @@ jobs:
             echo "::error::No assets to upload"
             exit 1
           fi
+          SERVER="$(curl -sS --fail https://api.gofile.io/servers | grep -o '"name":"[^"]*"' | head -n1 | cut -d'"' -f4)"
+          echo "gofile server: ${SERVER}"
           for FILE in "${files[@]}"; do
             [ -f "${FILE}" ] || continue
             NAME="$(basename "${FILE}")"
@@ -162,7 +164,7 @@ jobs:
             LINK=""
             RESPONSE=""
             for attempt in 1 2 3; do
-              RESPONSE="$(curl -sS --fail --retry 3 --max-time 1800 -F "file=@${FILE}" https://upload.gofile.io/uploadfile || true)"
+              RESPONSE="$(curl -sS --fail --retry 3 --retry-all-errors --retry-delay 5 --max-time 1800 -F "file=@${FILE}" "https://${SERVER}.gofile.io/contents/uploadfile" || true)"
               LINK="$(echo "${RESPONSE}" | grep -o '"downloadPage":"[^"]*"' | cut -d'"' -f4)"
               [ -n "${LINK}" ] && break
               echo "Attempt ${attempt} failed for ${NAME}; retrying..."
