@@ -23,9 +23,9 @@ case "$arch" in
 esac
 
 case "$RUNNER_OS" in
-  Windows) os="windows"; binary="loophole.exe"; cli_name="loophole-cli.exe" ;;
-  macOS) os="darwin"; binary="loophole"; cli_name="loophole-cli" ;;
-  Linux) os="linux"; binary="loophole"; cli_name="loophole-cli" ;;
+  Windows) os="windows"; binary="loophole-cli.exe"; cli_name="loophole-cli.exe" ;;
+  macOS) os="darwin"; binary="loophole-cli"; cli_name="loophole-cli" ;;
+  Linux) os="linux"; binary="loophole-cli"; cli_name="loophole-cli" ;;
   *) echo "::error::unsupported RUNNER_OS '$RUNNER_OS'"; exit 1 ;;
 esac
 
