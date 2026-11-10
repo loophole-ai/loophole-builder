@@ -1,0 +1,131 @@
+name: Build Loophole CLI + Desktop
+
+# Builds the CLI and the desktop app from loophole-ai/loophole-app (branch
+# `loophole`) without publishing anything. It lives in this repository because
+# loophole-app is private and its Actions minutes are metered, while this
+# repository is public, so a build here costs nothing and needs no billing.
+#
+# Nothing is released: the only outputs are workflow artifacts.
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_branch:
+        type: string
+        description: "loophole-app source branch"
+        default: "loophole"
+      scripts_ref:
+        type: string
+        description: "loophole-app ref holding get_repo.sh / build.sh / assets"
+        default: "main"
+      cli_version:
+        type: string
+        description: "CLI version string"
+        default: "1.1.4"
+      desktop_version:
+        type: string
+        description: "Desktop version string"
+        default: "1.1.8"
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      APP_BRANCH: ${{ github.event.inputs.app_branch || 'loophole' }}
+      SCRIPTS_REF: ${{ github.event.inputs.scripts_ref || 'main' }}
+      CLI_VERSION: ${{ github.event.inputs.cli_version || '1.1.4' }}
+      DESKTOP_VERSION: ${{ github.event.inputs.desktop_version || '1.1.8' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Check out the loophole-app build scripts
+        uses: actions/checkout@v4
+        with:
+          repository: loophole-ai/loophole-app
+          ref: ${{ env.SCRIPTS_REF }}
+          path: app
+          token: ${{ secrets.APP_REPO_TOKEN }}
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Check out the Loophole source branch
+        working-directory: app
+        env:
+          SRC_TOKEN: ${{ secrets.APP_REPO_TOKEN }}
+        run: |
+          export LOOPHOLE_SRC_URL="https://x-access-token:${SRC_TOKEN}@github.com/loophole-ai/loophole-app.git"
+          export LOOPHOLE_SRC_BRANCH="${APP_BRANCH}"
+          bash ./get_repo.sh
+
+      - name: Prepare the source tree
+        working-directory: app
+        run: bash ./prepare_src.sh
+
+      - name: Install dependencies
+        working-directory: app/opencode
+        env:
+          BUN_INSTALL_CACHE_DIR: ${{ github.workspace }}/.bun-cache
+        run: bun install
+
+      - name: Build CLI
+        working-directory: app
+        env:
+          BUILD_TARGET: cli
+          OPENCODE_TARGET: windows-x64-baseline
+          OPENCODE_VERSION: ${{ env.CLI_VERSION }}
+          BUN_INSTALL_CACHE_DIR: ${{ github.workspace }}/.bun-cache
+        run: bash ./build.sh
+
+      - name: Build desktop app
+        working-directory: app/opencode
+        env:
+          OPENCODE_TARGET: windows-x64
+          OPENCODE_VERSION: ${{ env.DESKTOP_VERSION }}
+          NODE_OPTIONS: --max-old-space-size=4096
+          BUN_INSTALL_CACHE_DIR: ${{ github.workspace }}/.bun-cache
+        run: bun run --cwd packages/desktop build
+
+      - name: Package desktop app (unsigned, no publish)
+        working-directory: app/opencode/packages/desktop
+        env:
+          OPENCODE_TARGET: windows-x64
+          OPENCODE_VERSION: ${{ env.DESKTOP_VERSION }}
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          BUN_INSTALL_CACHE_DIR: ${{ github.workspace }}/.bun-cache
+        run: bunx electron-builder --win --x64 --publish never --config electron-builder.config.ts
+
+      - name: List build outputs
+        run: |
+          echo "--- CLI dist ---"
+          find app/opencode/packages/cli/dist -maxdepth 3 -type f 2>/dev/null | head -40 || true
+          echo "--- desktop dist ---"
+          find app/opencode/packages/desktop/dist -maxdepth 2 -type f 2>/dev/null | head -40 || true
+          ls -la app/opencode/packages/desktop/dist 2>/dev/null || true
+
+      - name: Upload CLI
+        uses: actions/upload-artifact@v4
+        with:
+          name: loophole-cli-windows-x64
+          path: |
+            app/opencode/packages/cli/dist/**
+            app/opencode/packages/cli/bin/**
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Upload desktop app
+        uses: actions/upload-artifact@v4
+        with:
+          name: loophole-desktop-windows-x64
+          path: |
+            app/opencode/packages/desktop/dist/**
+          if-no-files-found: warn
+          retention-days: 7
