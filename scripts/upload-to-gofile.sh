@@ -42,15 +42,55 @@ size=$(wc -c <"$FILE" | tr -d ' ')
 name=$(basename "$FILE")
 echo "uploading $name ($size bytes)"
 
-# --fail turns an HTTP error into a non-zero exit, and -L follows redirects.
-# A gofile error body is plain text such as "error-file", not JSON, so also
-# require the response to look like JSON before trusting it.
-response=$(curl -sS -L --fail-with-body \
-	-X POST 'https://upload.gofile.io/uploadfile' \
-	-F "file=@${FILE}" 2>&1) || {
-	echo "::error::upload request failed: $response" >&2
-	exit 1
+# Large installers (~260 MB) frequently hit gofile's 5xx / 500 / connection resets
+# on a single attempt (observed: "500" + "error-createFolderResponse" on a
+# 263 MB exe). Retry with fresh TCP connections and, after several direct
+# failures, fall back to a specific edge server picked from api.gofile.io/servers
+# (the direct upload.gofile.io host itself routes per request, so both paths
+# are exercised). --retry-all-errors retries on 5xx and network errors alike.
+# No token is needed; gofile creates a guest account per upload.
+post_attempt() {
+	local host="$1"
+	local out
+	if ! out=$(curl -sS -L --fail-with-body \
+		--retry 5 --retry-all-errors --retry-delay 5 \
+		--connect-timeout 60 --max-time 3600 \
+		-X POST "${host}/contents/uploadfile" \
+		-F "file=@${FILE}" 2>&1); then
+		echo "ATTEMPT_FAILED ${host}: ${out}" >&2
+		return 1
+	fi
+	case "$out" in
+	'{'*) ;;
+	*)
+		echo "ATTEMPT_NOT_JSON ${host}: ${out}" >&2
+		return 1
+		;;
+	esac
+	printf '%s' "$out"
 }
+
+response=""
+for attempt in 1 2 3; do
+	response=$(post_attempt 'https://upload.gofile.io') && break
+	echo "::warning::direct gofile upload attempt ${attempt} failed; retrying" >&2
+done
+
+if [[ -z "$response" ]]; then
+	# Fallback: a specific edge server from the servers list (avoid the rate
+	# limit by picking only once, never in a loop).
+	server=$(curl -sS --max-time 30 'https://api.gofile.io/servers' \
+		| node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{try{const j=JSON.parse(s);const list=(j.data&&j.data.servers)||[];console.log(list[0]&&list[0].name||"")}catch{console.log("")}})')
+	if [[ -n "$server" ]]; then
+		echo "::warning::direct host failed 3 times; trying edge server ${server}" >&2
+		response=$(post_attempt "https://${server}.gofile.io") || response=""
+	fi
+fi
+
+if [[ -z "$response" ]]; then
+	echo "::error::upload request failed on every attempt" >&2
+	exit 1
+fi
 
 case "$response" in
 '{'*) ;;
