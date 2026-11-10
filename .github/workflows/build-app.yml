@@ -63,6 +63,8 @@ jobs:
                  "https://x-access-token:${token}@github.com/loophole-ai/loophole-app.git" app 2>/dev/null; then
               echo "cloned loophole-app (${SCRIPTS_REF}) using ${name}"
               git -C app remote set-url origin https://github.com/loophole-ai/loophole-app.git
+              # Reuse the token that actually worked for the source-branch checkout.
+              echo "APP_SRC_TOKEN=${token}" >> "$GITHUB_ENV"
               exit 0
             fi
             echo "${name}: cannot read loophole-ai/loophole-app"
@@ -76,8 +78,12 @@ jobs:
       - name: Check out the Loophole source branch
         working-directory: app
         env:
-          SRC_TOKEN: ${{ secrets.APP_REPO_TOKEN }}
+          SRC_TOKEN: ${{ env.APP_SRC_TOKEN }}
         run: |
+          if [ -z "${SRC_TOKEN:-}" ]; then
+            echo "::error::no working app token was resolved in the previous step"
+            exit 1
+          fi
           export LOOPHOLE_SRC_URL="https://x-access-token:${SRC_TOKEN}@github.com/loophole-ai/loophole-app.git"
           export LOOPHOLE_SRC_BRANCH="${APP_BRANCH}"
           bash ./get_repo.sh
