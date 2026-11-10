@@ -47,13 +47,29 @@ jobs:
           persist-credentials: false
 
       - name: Check out the loophole-app build scripts
-        uses: actions/checkout@v4
-        with:
-          repository: loophole-ai/loophole-app
-          ref: ${{ env.SCRIPTS_REF }}
-          path: app
-          token: ${{ secrets.APP_REPO_TOKEN }}
-          persist-credentials: false
+        env:
+          TOKEN_APP: ${{ secrets.APP_REPO_TOKEN }}
+          TOKEN_STRONG: ${{ secrets.STRONGER_GITHUB_TOKEN }}
+          TOKEN_DEFAULT: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -uo pipefail
+          # The app repo is private. Try the available org tokens in order of
+          # likely access and stop at the first that can read it, so a token
+          # without repository access reports itself instead of failing blind.
+          for name in TOKEN_APP TOKEN_STRONG TOKEN_DEFAULT; do
+            token="${!name:-}"
+            [ -n "$token" ] || { echo "${name}: not configured"; continue; }
+            if git clone --quiet --depth 1 --branch "${SCRIPTS_REF}" \
+                 "https://x-access-token:${token}@github.com/loophole-ai/loophole-app.git" app 2>/dev/null; then
+              echo "cloned loophole-app (${SCRIPTS_REF}) using ${name}"
+              git -C app remote set-url origin https://github.com/loophole-ai/loophole-app.git
+              exit 0
+            fi
+            echo "${name}: cannot read loophole-ai/loophole-app"
+            rm -rf app
+          done
+          echo "::error::no configured token can read loophole-ai/loophole-app; grant one of APP_REPO_TOKEN / STRONGER_GITHUB_TOKEN access to that repository"
+          exit 1
 
       - uses: oven-sh/setup-bun@v2
 
