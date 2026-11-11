@@ -133,6 +133,32 @@ jobs:
           find app/opencode/packages/desktop/dist -maxdepth 2 -type f 2>/dev/null | head -40 || true
           ls -la app/opencode/packages/desktop/dist 2>/dev/null || true
 
+      - name: Upload CLI to gofile
+        shell: bash
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          bin=$(ls -1 app/opencode/packages/cli/dist/*/bin/loophole-cli.exe 2>/dev/null | head -n1 || true)
+          if [[ -z "$bin" ]]; then
+            echo "::warning::no loophole-cli.exe under packages/cli/dist, skipping upload"
+            find app/opencode/packages/cli/dist -maxdepth 4 -type f 2>/dev/null | head -20 || true
+            exit 0
+          fi
+          bash scripts/upload-to-gofile.sh "$bin"
+
+      - name: Upload desktop installer to gofile
+        shell: bash
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          exe=$(ls -1 app/opencode/packages/desktop/dist/loophole-desktop-win-x64.exe 2>/dev/null | head -n1 || true)
+          if [[ -z "$exe" ]]; then
+            echo "::warning::no desktop installer in packages/desktop/dist, skipping upload"
+            ls -la app/opencode/packages/desktop/dist 2>/dev/null | head -20 || true
+            exit 0
+          fi
+          bash scripts/upload-to-gofile.sh "$exe"
+
       - name: Upload CLI
         uses: actions/upload-artifact@v4
         with:
