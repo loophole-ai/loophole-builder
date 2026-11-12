@@ -16,7 +16,7 @@ on:
         default: "loophole"
       scripts_ref:
         type: string
-        description: "loophole-app ref holding get_repo.sh / build.sh / assets"
+        description: "unused (kept so existing callers keep working)"
         default: "main"
       cli_version:
         type: string
@@ -25,7 +25,7 @@ on:
       desktop_version:
         type: string
         description: "Desktop version string"
-        default: "1.1.8"
+        default: "1.1.9"
 
 permissions:
   contents: read
@@ -38,33 +38,29 @@ jobs:
         shell: bash
     env:
       APP_BRANCH: ${{ github.event.inputs.app_branch || 'loophole' }}
-      SCRIPTS_REF: ${{ github.event.inputs.scripts_ref || 'main' }}
       CLI_VERSION: ${{ github.event.inputs.cli_version || '1.1.4' }}
-      DESKTOP_VERSION: ${{ github.event.inputs.desktop_version || '1.1.8' }}
+      DESKTOP_VERSION: ${{ github.event.inputs.desktop_version || '1.1.9' }}
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
 
-      - name: Check out the loophole-app build scripts
+      - name: Check out the Loophole source
         env:
           TOKEN_APP: ${{ secrets.APP_REPO_TOKEN }}
           TOKEN_STRONG: ${{ secrets.STRONGER_GITHUB_TOKEN }}
           TOKEN_DEFAULT: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -uo pipefail
-          # The app repo is private. Try the available org tokens in order of
-          # likely access and stop at the first that can read it, so a token
-          # without repository access reports itself instead of failing blind.
+          # The app repo is private and holds everything needed to build, so a
+          # single checkout of the fork branch is the whole source tree.
           for name in TOKEN_APP TOKEN_STRONG TOKEN_DEFAULT; do
             token="${!name:-}"
             [ -n "$token" ] || { echo "${name}: not configured"; continue; }
-            if git clone --quiet --depth 1 --branch "${SCRIPTS_REF}" \
+            if git clone --quiet --depth 1 --branch "${APP_BRANCH}" \
                  "https://x-access-token:${token}@github.com/loophole-ai/loophole-app.git" app 2>/dev/null; then
-              echo "cloned loophole-app (${SCRIPTS_REF}) using ${name}"
+              echo "cloned loophole-app (${APP_BRANCH}) using ${name}"
               git -C app remote set-url origin https://github.com/loophole-ai/loophole-app.git
-              # Reuse the token that actually worked for the source-branch checkout.
-              echo "APP_SRC_TOKEN=${token}" >> "$GITHUB_ENV"
               exit 0
             fi
             echo "${name}: cannot read loophole-ai/loophole-app"
@@ -75,25 +71,8 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
 
-      - name: Check out the Loophole source branch
-        working-directory: app
-        env:
-          SRC_TOKEN: ${{ env.APP_SRC_TOKEN }}
-        run: |
-          if [ -z "${SRC_TOKEN:-}" ]; then
-            echo "::error::no working app token was resolved in the previous step"
-            exit 1
-          fi
-          export LOOPHOLE_SRC_URL="https://x-access-token:${SRC_TOKEN}@github.com/loophole-ai/loophole-app.git"
-          export LOOPHOLE_SRC_BRANCH="${APP_BRANCH}"
-          bash ./get_repo.sh
-
-      - name: Prepare the source tree
-        working-directory: app
-        run: bash ./prepare_src.sh
-
       - name: Install dependencies
-        working-directory: app/opencode
+        working-directory: app
         env:
           BUN_INSTALL_CACHE_DIR: ${{ github.workspace }}/.bun-cache
         run: bun install
@@ -108,7 +87,7 @@ jobs:
         run: bash ./build.sh
 
       - name: Build desktop app
-        working-directory: app/opencode
+        working-directory: app
         env:
           OPENCODE_TARGET: windows-x64
           OPENCODE_VERSION: ${{ env.DESKTOP_VERSION }}
@@ -117,7 +96,7 @@ jobs:
         run: bun run --cwd packages/desktop build
 
       - name: Package desktop app (unsigned, no publish)
-        working-directory: app/opencode/packages/desktop
+        working-directory: app/packages/desktop
         env:
           OPENCODE_TARGET: windows-x64
           OPENCODE_VERSION: ${{ env.DESKTOP_VERSION }}
@@ -128,20 +107,20 @@ jobs:
       - name: List build outputs
         run: |
           echo "--- CLI dist ---"
-          find app/opencode/packages/cli/dist -maxdepth 3 -type f 2>/dev/null | head -40 || true
+          find app/packages/cli/dist -maxdepth 3 -type f 2>/dev/null | head -40 || true
           echo "--- desktop dist ---"
-          find app/opencode/packages/desktop/dist -maxdepth 2 -type f 2>/dev/null | head -40 || true
-          ls -la app/opencode/packages/desktop/dist 2>/dev/null || true
+          find app/packages/desktop/dist -maxdepth 2 -type f 2>/dev/null | head -40 || true
+          ls -la app/packages/desktop/dist 2>/dev/null || true
 
       - name: Upload CLI to gofile
         shell: bash
         continue-on-error: true
         run: |
           set -uo pipefail
-          bin=$(ls -1 app/opencode/packages/cli/dist/*/bin/loophole-cli.exe 2>/dev/null | head -n1 || true)
+          bin=$(ls -1 app/packages/cli/dist/*/bin/loophole-cli.exe 2>/dev/null | head -n1 || true)
           if [[ -z "$bin" ]]; then
             echo "::warning::no loophole-cli.exe under packages/cli/dist, skipping upload"
-            find app/opencode/packages/cli/dist -maxdepth 4 -type f 2>/dev/null | head -20 || true
+            find app/packages/cli/dist -maxdepth 4 -type f 2>/dev/null | head -20 || true
             exit 0
           fi
           bash scripts/upload-to-gofile.sh "$bin"
@@ -151,10 +130,10 @@ jobs:
         continue-on-error: true
         run: |
           set -uo pipefail
-          exe=$(ls -1 app/opencode/packages/desktop/dist/loophole-desktop-win-x64.exe 2>/dev/null | head -n1 || true)
+          exe=$(ls -1 app/packages/desktop/dist/loophole-desktop-win-x64.exe 2>/dev/null | head -n1 || true)
           if [[ -z "$exe" ]]; then
             echo "::warning::no desktop installer in packages/desktop/dist, skipping upload"
-            ls -la app/opencode/packages/desktop/dist 2>/dev/null | head -20 || true
+            ls -la app/packages/desktop/dist 2>/dev/null | head -20 || true
             exit 0
           fi
           bash scripts/upload-to-gofile.sh "$exe"
@@ -164,8 +143,8 @@ jobs:
         with:
           name: loophole-cli-windows-x64
           path: |
-            app/opencode/packages/cli/dist/**
-            app/opencode/packages/cli/bin/**
+            app/packages/cli/dist/**
+            app/packages/cli/bin/**
           if-no-files-found: warn
           retention-days: 7
 
@@ -174,6 +153,6 @@ jobs:
         with:
           name: loophole-desktop-windows-x64
           path: |
-            app/opencode/packages/desktop/dist/**
+            app/packages/desktop/dist/**
           if-no-files-found: warn
           retention-days: 7
