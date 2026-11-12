@@ -132,6 +132,12 @@ jobs:
           npm_config_arch: x64
         run: ./build/windows/package.sh
 
+      - name: Bundle the Loophole CLI
+        shell: bash
+        env:
+          LOOPHOLE_IDE_ROOT: vscode/VSCode-win32-x64
+        run: ./scripts/bundle-cli.sh x64
+
       - name: Prepare assets
         shell: bash
         env:
