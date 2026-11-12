@@ -20,8 +20,8 @@ on:
         default: "main"
       cli_version:
         type: string
-        description: "CLI version string"
-        default: "1.1.4"
+        description: "CLI version to stamp (empty = latest published)"
+        default: ""
       desktop_version:
         type: string
         description: "Desktop version string"
@@ -38,7 +38,7 @@ jobs:
         shell: bash
     env:
       APP_BRANCH: ${{ github.event.inputs.app_branch || 'loophole' }}
-      CLI_VERSION: ${{ github.event.inputs.cli_version || '1.1.4' }}
+      CLI_VERSION: ${{ github.event.inputs.cli_version }}
       DESKTOP_VERSION: ${{ github.event.inputs.desktop_version || '1.1.9' }}
     steps:
       - uses: actions/checkout@v4
@@ -70,6 +70,21 @@ jobs:
           exit 1
 
       - uses: oven-sh/setup-bun@v2
+
+      - name: Resolve CLI version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${CLI_VERSION:-}"
+          if [ -z "$version" ]; then
+            version=$(curl -fsSL --max-time 60 https://registry.npmjs.org/@loophole-ai/cli/latest | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{try{console.log(JSON.parse(s).version||"")}catch{console.log("")}})')
+          fi
+          if [ -z "$version" ]; then
+            echo "::error::could not resolve the published CLI version"
+            exit 1
+          fi
+          echo "using CLI version $version"
+          echo "CLI_VERSION=$version" >> "$GITHUB_ENV"
 
       - name: Install dependencies
         working-directory: app
