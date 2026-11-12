@@ -113,7 +113,7 @@ jobs:
         run: ./scripts/bundle-cli.sh ${{ matrix.vscode_arch }}
         if: env.DISABLED != 'yes' && env.SHOULD_BUILD == 'yes'
 
-      - uses: actions-rust-lang/setup-rust-toolchain@v1.16.0
+      - uses: actions-rust-lang/setup-rust-toolchain@v2.0.0
         if: env.DISABLED != 'yes' && env.SHOULD_BUILD == 'yes'
 
       - name: Download vscode artifact
