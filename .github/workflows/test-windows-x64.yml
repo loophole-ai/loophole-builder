@@ -132,7 +132,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          bin="VSCode-win32-x64/resources/loophole-cli.exe"
+          bin="vscode/resources/loophole-cli.exe"
           ls -la "$bin"
           test -s "$bin"
           echo "bundled CLI present: $(du -m "$bin" | cut -f1) MB"
@@ -156,7 +156,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          bin="VSCode-win32-x64/resources/loophole-cli.exe"
+          bin="vscode/resources/loophole-cli.exe"
           ls -la "$bin"
           test -s "$bin"
           echo "bundled CLI present: $(du -m "$bin" | cut -f1) MB"
