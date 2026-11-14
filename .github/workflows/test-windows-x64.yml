@@ -125,6 +125,17 @@ jobs:
         shell: bash
         run: ./scripts/bundle-cli.sh x64
 
+      # The IDE must never ship without its engine: without the CLI every chat,
+      # provider, and autocomplete feature reports "not found". Fail loudly here
+      # rather than at the user's first launch.
+      - name: Verify the bundled CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          bin="VSCode-win32-x64/resources/loophole-cli.exe"
+          ls -la "$bin"
+          test -s "$bin"
+          echo "bundled CLI present: $(du -m "$bin" | cut -f1) MB"
       - name: Build
         shell: bash
         env:
@@ -138,6 +149,17 @@ jobs:
           LOOPHOLE_IDE_ROOT: vscode/VSCode-win32-x64
         run: ./scripts/bundle-cli.sh x64
 
+      # The IDE must never ship without its engine: without the CLI every chat,
+      # provider, and autocomplete feature reports "not found". Fail loudly here
+      # rather than at the user's first launch.
+      - name: Verify the bundled CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          bin="VSCode-win32-x64/resources/loophole-cli.exe"
+          ls -la "$bin"
+          test -s "$bin"
+          echo "bundled CLI present: $(du -m "$bin" | cut -f1) MB"
       - name: Prepare assets
         shell: bash
         env:
