@@ -41,7 +41,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # macos-latest hosted pool is Apple Silicon only; the Intel build runs on the Intel pool
+          # macos-latest hosted pool is Apple Silicon only and capacity is unavailable in practice;
+          # both arches build on the Intel pool (native x64, cross for arm64)
           - slug: X64
             vscode_arch: x64
             npm_arch: x64
@@ -49,7 +50,7 @@ jobs:
           - slug: ARM64
             vscode_arch: arm64
             npm_arch: arm64
-            runner: macos-latest
+            runner: macos-15-intel
     runs-on: ${{ matrix.runner }}
     env:
       DISABLED: ${{ vars[format('DISABLE_STABLE_MACOS_APP_{0}', matrix.slug)] }}
