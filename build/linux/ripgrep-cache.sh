@@ -4,7 +4,7 @@
 # all. The postinstall checks $TMPDIR/vscode-ripgrep-cache-<version>/<asset>
 # before calling the API — if it is present it is used as-is.
 
-set -euo pipefail
+# Note: sourced by package_reh.sh — do not enable set -u here or it leaks into the caller.
 
 VSCODE_HOST_MOUNT="${VSCODE_HOST_MOUNT:-${PWD}}"
 RG_CACHE_ROOT="${VSCODE_HOST_MOUNT}/.build/ripgrep-cache"
