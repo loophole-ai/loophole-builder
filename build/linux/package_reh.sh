@@ -108,6 +108,12 @@ if [[ -n "${VSCODE_REMOTE_DEPENDENCIES_CONTAINER_NAME:-}" ]]; then
   export VSCODE_REMOTE_DEPENDENCIES_CONTAINER_NAME
 fi
 
+# Seed the ripgrep cache so the host and container npm ci never hit the GitHub API
+# (ripgrep postinstall would otherwise call api.github.com and 403 on rate limits).
+if [[ -f "${LOOPHOLE_BUILDER_ROOT}/build/linux/ripgrep-cache.sh" ]]; then
+  source "${LOOPHOLE_BUILDER_ROOT}/build/linux/ripgrep-cache.sh"
+fi
+
 sed -i "/target/s/\"[0-9][0-9.]*\"/\"${NODE_VERSION}\"/" remote/.npmrc
 
 if [[ -d "../patches/linux/reh/" ]]; then
